@@ -1,5 +1,10 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { CalendarClock, Clock, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { CalendarClock, Clock, MinusCircle, Plus } from "lucide-react";
 import { EmptyState } from "@/components/layout/feedback-states";
 import { StatusBadge } from "@/components/layout/status-badge";
 import { Button } from "@/components/ui/button";
@@ -12,9 +17,40 @@ export interface DashboardTaskItem extends TodayScheduledTask {
 
 interface TodayScheduleListProps {
   items: DashboardTaskItem[];
+  todayDate: string;
 }
 
-export function TodayScheduleList({ items }: TodayScheduleListProps) {
+export function TodayScheduleList({ items, todayDate }: TodayScheduleListProps) {
+  const router = useRouter();
+  const [skippingId, setSkippingId] = useState<string | null>(null);
+
+  async function handleSkip(item: DashboardTaskItem) {
+    setSkippingId(item.id);
+    try {
+      const response = await fetch("/api/measurements/skip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          metric_type: item.metricType,
+          tracking_config_id: item.configId,
+          scheduled_date: todayDate,
+          context_label: item.context,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok || json.error) {
+        toast.error(json.error?.message ?? "Couldn't mark task as skipped.");
+        return;
+      }
+      toast.success("Marked as skipped");
+      router.refresh();
+    } catch {
+      toast.error("Couldn't mark task as skipped. Check your connection.");
+    } finally {
+      setSkippingId(null);
+    }
+  }
+
   return (
     <section
       aria-labelledby="today-schedule-heading"
@@ -51,7 +87,7 @@ export function TodayScheduleList({ items }: TodayScheduleListProps) {
       ) : (
         <div className="flex flex-col gap-2.5">
           {items.map((item) => {
-            const canQuickLog =
+            const canAction =
               item.status === "pending" || item.status === "upcoming";
 
             return (
@@ -81,13 +117,28 @@ export function TodayScheduleList({ items }: TodayScheduleListProps) {
                       </span>
                     ) : null}
 
-                    {canQuickLog ? (
-                      <Link href={`/log?metric=${item.metricType}`}>
-                        <Button size="sm" variant="secondary" type="button">
-                          <Plus className="size-3.5" aria-hidden="true" />
-                          Log
+                    {canAction ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          type="button"
+                          disabled={skippingId === item.id}
+                          onClick={() => void handleSkip(item)}
+                          title="Mark as skipped"
+                        >
+                          <MinusCircle className="size-3.5" aria-hidden="true" />
+                          Skip
                         </Button>
-                      </Link>
+                        <Link
+                          href={`/log?metric=${item.metricType}&context=${encodeURIComponent(item.context)}`}
+                        >
+                          <Button size="sm" variant="secondary" type="button">
+                            <Plus className="size-3.5" aria-hidden="true" />
+                            Log
+                          </Button>
+                        </Link>
+                      </>
                     ) : null}
                   </div>
                 </CardContent>

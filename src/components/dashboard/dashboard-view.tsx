@@ -9,23 +9,35 @@ import {
 } from "./metric-summary-grid";
 import { QuickActionsBar } from "./quick-actions-bar";
 import {
+  RecentMeasurementsList,
+  type RecentMeasurement,
+} from "./recent-measurements-list";
+import {
   TodayScheduleList,
   type DashboardTaskItem,
 } from "./today-schedule-list";
 
 interface DashboardViewProps {
   userName?: string | null;
+  todayDate: string;
   metrics: DashboardMetricCard[];
   tasks: DashboardTaskItem[];
+  recentMeasurements: RecentMeasurement[];
+  dailyNote: string;
 }
 
 export function DashboardView({
   userName,
+  todayDate,
   metrics,
   tasks,
+  recentMeasurements,
+  dailyNote,
 }: DashboardViewProps) {
   const displayName = userName?.trim() || "there";
-  const completedCount = tasks.filter((t) => t.status === "recorded").length;
+  const completedCount = tasks.filter(
+    (t) => t.status === "recorded" || t.status === "late"
+  ).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -46,9 +58,15 @@ export function DashboardView({
 
       <MetricSummaryGrid metrics={metrics} />
 
-      <TodayScheduleList items={tasks} />
+      <TodayScheduleList items={tasks} todayDate={todayDate} />
 
-      <DailyNoteCard />
+      <RecentMeasurementsList records={recentMeasurements} />
+
+      <DailyNoteCard
+        key={`${todayDate}-${dailyNote}`}
+        todayDate={todayDate}
+        initialContent={dailyNote}
+      />
     </div>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { StickyNote } from "lucide-react";
+import { Loader2, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,13 +14,42 @@ import {
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 
-export function DailyNoteCard() {
-  const [note, setNote] = useState("");
+interface DailyNoteCardProps {
+  todayDate: string;
+  initialContent: string;
+}
 
-  function handleSavePreview() {
-    toast.success("Daily note preview saved", {
-      description: "Notes will persist to Supabase starting in Milestone 4–7.",
-    });
+export function DailyNoteCard({
+  todayDate,
+  initialContent,
+}: DailyNoteCardProps) {
+  const router = useRouter();
+  const [note, setNote] = useState(initialContent);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const response = await fetch("/api/daily-notes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          note_date: todayDate,
+          content: note.trim(),
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok || json.error) {
+        toast.error(json.error?.message ?? "Couldn't save daily note.");
+        return;
+      }
+      toast.success(note.trim() ? "Daily note saved" : "Daily note cleared");
+      router.refresh();
+    } catch {
+      toast.error("Couldn't save daily note. Check your connection.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -47,10 +77,17 @@ export function DailyNoteCard() {
             size="sm"
             variant="secondary"
             type="button"
-            disabled={!note.trim()}
-            onClick={handleSavePreview}
+            disabled={saving || note.trim() === initialContent.trim()}
+            onClick={() => void handleSave()}
           >
-            Save note
+            {saving ? (
+              <>
+                <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                Saving...
+              </>
+            ) : (
+              "Save note"
+            )}
           </Button>
         </div>
       </CardContent>

@@ -1,7 +1,10 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { SlidersHorizontal } from "lucide-react";
 import { LoadingState } from "@/components/layout/feedback-states";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -32,6 +35,24 @@ async function ProfileContent() {
 
   return (
     <div className="flex flex-col gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Health Tracking Configuration</CardTitle>
+          <CardDescription>
+            Choose which metrics to track, customize units and meal contexts,
+            and set your daily schedule.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link href="/profile/tracking">
+            <Button size="lg" variant="secondary" type="button">
+              <SlidersHorizontal className="size-4" aria-hidden="true" />
+              Configure Metrics &amp; Schedules
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+
       <ProfileSettingsForm
         userId={user.id}
         email={user.email ?? ""}

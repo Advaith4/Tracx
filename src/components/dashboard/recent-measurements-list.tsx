@@ -1,7 +1,15 @@
 import Link from "next/link";
 import { Mic, PencilLine } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import type { RecentMeasurement } from "./mock-dashboard-data";
+
+export interface RecentMeasurement {
+  id: string;
+  type: string;
+  value: string;
+  context: string;
+  measuredAt: string;
+  source: "voice" | "manual";
+}
 
 interface RecentMeasurementsListProps {
   records: RecentMeasurement[];

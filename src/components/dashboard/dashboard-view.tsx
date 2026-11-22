@@ -15,11 +15,17 @@ import { QuickActionsBar } from "./quick-actions-bar";
 import { RecentMeasurementsList } from "./recent-measurements-list";
 import { TodayScheduleList } from "./today-schedule-list";
 
-export function DashboardView() {
+interface DashboardViewProps {
+  userName?: string | null;
+}
+
+export function DashboardView({ userName }: DashboardViewProps) {
+  const displayName = userName?.trim() || MOCK_USER_NAME;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <GreetingHeader name={MOCK_USER_NAME} />
+        <GreetingHeader name={displayName} />
         <Link
           href="/design-system"
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -30,8 +36,8 @@ export function DashboardView() {
       </div>
 
       <p className="rounded-xl border border-border/80 bg-muted/60 px-3.5 py-2 text-xs text-muted-foreground">
-        Preview mode: showing sample dashboard data until Supabase authentication
-        and live records are connected in Milestones 4–7.
+        Preview mode: your account is connected; measurement cards still show
+        sample data until Milestones 6–7 connect live tracking records.
       </p>
 
       <DailyProgressCard

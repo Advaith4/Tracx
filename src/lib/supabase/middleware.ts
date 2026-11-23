@@ -9,6 +9,7 @@ const PROTECTED_PREFIXES = [
   "/insights",
   "/reports",
   "/profile",
+  "/assistant",
   "/design-system",
   "/update-password",
 ];

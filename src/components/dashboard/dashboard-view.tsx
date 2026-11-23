@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, Sparkles } from "lucide-react";
 import { DailyNoteCard } from "./daily-note-card";
 import { DailyProgressCard } from "./daily-progress-card";
 import { GreetingHeader } from "./greeting-header";
@@ -43,13 +43,22 @@ export function DashboardView({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <GreetingHeader name={displayName} />
-        <Link
-          href="/profile/tracking"
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <SlidersHorizontal className="size-3.5" aria-hidden="true" />
-          Tracking Settings
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/assistant"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-secondary/60"
+          >
+            <Sparkles className="size-3.5" aria-hidden="true" />
+            Ask Assistant
+          </Link>
+          <Link
+            href="/profile/tracking"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <SlidersHorizontal className="size-3.5" aria-hidden="true" />
+            Tracking Settings
+          </Link>
+        </div>
       </div>
 
       <DailyProgressCard completed={completedCount} total={tasks.length} />

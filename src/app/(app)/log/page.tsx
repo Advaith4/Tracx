@@ -18,7 +18,7 @@ const VALID_METRICS: MetricType[] = [
 async function AuthenticatedLogContent({
   searchParams,
 }: {
-  searchParams: Promise<{ metric?: string; context?: string }>;
+  searchParams: Promise<{ metric?: string; context?: string; mode?: string }>;
 }) {
   await connection();
   const [supabase, resolvedParams] = await Promise.all([
@@ -57,9 +57,13 @@ async function AuthenticatedLogContent({
       ? (requestedMetric as MetricType)
       : firstEnabledMetric;
 
+  const timezone = profile?.timezone ?? "UTC";
+
   return (
     <LogWorkspace
       userId={user.id}
+      timezone={timezone}
+      autoFocusVoice={resolvedParams.mode === "voice"}
       initialMetric={initialMetric}
       contextHint={resolvedParams.context ?? null}
       configs={configs}
@@ -71,7 +75,7 @@ async function AuthenticatedLogContent({
 export default function LogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ metric?: string; context?: string }>;
+  searchParams: Promise<{ metric?: string; context?: string; mode?: string }>;
 }) {
   return (
     <div className="flex flex-col gap-5">

@@ -7,12 +7,13 @@ import { toast } from "sonner";
 import {
   Activity,
   Droplets,
-  Mic,
   Pencil,
   Scale,
   SlidersHorizontal,
+  Sparkles,
   Trash2,
 } from "lucide-react";
+import Link from "next/link";
 import { EmptyState } from "@/components/layout/feedback-states";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { UnifiedMeasurement } from "@/features/measurements/service";
+import { VoiceLoggerPanel } from "@/features/voice-logging/components/voice-logger-panel";
 import type {
   GlucoseUnit,
   MetricType,
@@ -44,6 +46,8 @@ import { WeightForm } from "./weight-form";
 
 interface LogWorkspaceProps {
   userId: string;
+  timezone: string;
+  autoFocusVoice?: boolean;
   initialMetric: MetricType;
   contextHint?: string | null;
   configs: Tables<"tracking_configs">[];
@@ -74,6 +78,8 @@ function getDeleteEndpoint(item: UnifiedMeasurement): string {
 
 export function LogWorkspace({
   userId,
+  timezone,
+  autoFocusVoice = false,
   initialMetric,
   contextHint,
   configs,
@@ -157,14 +163,23 @@ export function LogWorkspace({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 px-4 py-3 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2.5">
-          <Mic className="size-4 shrink-0 text-primary" aria-hidden="true" />
-          <span>
-            Voice-assisted extraction arrives in Milestone 9. Manual &amp;
-            backdated logging is always available here.
-          </span>
-        </div>
+      <VoiceLoggerPanel
+        timezone={timezone}
+        autoFocusVoice={autoFocusVoice}
+        onSaved={handleSaved}
+      />
+
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">
+          Or enter a measurement manually
+        </span>
+        <Link
+          href="/assistant"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+        >
+          <Sparkles className="size-3.5" aria-hidden="true" />
+          Ask AI Data Assistant
+        </Link>
       </div>
 
       <div

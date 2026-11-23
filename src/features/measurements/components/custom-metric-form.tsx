@@ -15,6 +15,10 @@ import {
 } from "@/components/ui/select";
 import type { Tables } from "@/types/database";
 import {
+  enqueueMeasurementDraft,
+  isOfflineOrNetworkError,
+} from "@/lib/offline/draft-queue";
+import {
   combineLocalDateTimeToIso,
   toLocalDateInputValue,
   toLocalTimeInputValue,
@@ -22,12 +26,14 @@ import {
 import { MeasurementDateTimeFields } from "./measurement-common-fields";
 
 interface CustomMetricFormProps {
+  userId?: string;
   customConfigs: Tables<"tracking_configs">[];
   initialRecord?: Tables<"custom_metric_records">;
   onSaved: () => void;
 }
 
 export function CustomMetricForm({
+  userId,
   customConfigs,
   initialRecord,
   onSaved,
@@ -68,18 +74,44 @@ export function CustomMetricForm({
     const numericCandidate = Number(trimmed);
     const isNumeric = trimmed.length > 0 && Number.isFinite(numericCandidate);
 
+    const measuredAt = combineLocalDateTimeToIso(dateStr, timeStr);
+    const unitVal = selectedConfig?.unit ?? initialRecord?.unit ?? null;
+    const payload = {
+      metric_config_id: selectedConfigId,
+      value_numeric: isNumeric ? numericCandidate : null,
+      value_text: isNumeric ? null : trimmed,
+      unit: unitVal,
+      measured_at: measuredAt,
+      notes: notes.trim() || null,
+      source: "manual" as const,
+    };
+
+    const queueAsOfflineDraft = () => {
+      if (isEditing || !userId) return false;
+      const metricName = selectedConfig?.custom_label || "Custom";
+      enqueueMeasurementDraft({
+        userId,
+        metricType: "custom",
+        endpoint: "/api/measurements/custom",
+        summary: `${metricName}: ${trimmed}${unitVal ? ` ${unitVal}` : ""}`,
+        measuredAt,
+        payload,
+      });
+      setRawValue("");
+      setNotes("");
+      toast.info(
+        "You're offline — saved reading to your draft queue for syncing later."
+      );
+      return true;
+    };
+
+    if (!isEditing && userId && isOfflineOrNetworkError()) {
+      queueAsOfflineDraft();
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const payload = {
-        metric_config_id: selectedConfigId,
-        value_numeric: isNumeric ? numericCandidate : null,
-        value_text: isNumeric ? null : trimmed,
-        unit: selectedConfig?.unit ?? initialRecord?.unit ?? null,
-        measured_at: combineLocalDateTimeToIso(dateStr, timeStr),
-        notes: notes.trim() || null,
-        source: "manual" as const,
-      };
-
       const url = initialRecord
         ? `/api/measurements/custom/${initialRecord.id}`
         : "/api/measurements/custom";
@@ -103,7 +135,10 @@ export function CustomMetricForm({
         isEditing ? "Custom reading updated" : "Custom reading saved"
       );
       onSaved();
-    } catch {
+    } catch (error) {
+      if (isOfflineOrNetworkError(error) && queueAsOfflineDraft()) {
+        return;
+      }
       setErrorMsg("Couldn't save your measurement. Check your connection.");
     } finally {
       setIsSubmitting(false);

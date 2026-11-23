@@ -15,6 +15,10 @@ import {
 } from "@/components/ui/select";
 import type { GlucoseUnit, MealContext, MealTiming, Tables } from "@/types/database";
 import {
+  enqueueMeasurementDraft,
+  isOfflineOrNetworkError,
+} from "@/lib/offline/draft-queue";
+import {
   combineLocalDateTimeToIso,
   toLocalDateInputValue,
   toLocalTimeInputValue,
@@ -114,6 +118,7 @@ function inferPresetFromRecordOrQuery(
 }
 
 interface GlucoseFormProps {
+  userId?: string;
   defaultUnit?: GlucoseUnit;
   contextHint?: string | null;
   initialRecord?: Tables<"glucose_records">;
@@ -121,6 +126,7 @@ interface GlucoseFormProps {
 }
 
 export function GlucoseForm({
+  userId,
   defaultUnit = "mg/dL",
   contextHint,
   initialRecord,
@@ -161,23 +167,50 @@ export function GlucoseForm({
       return;
     }
 
+    const measuredAt = combineLocalDateTimeToIso(dateStr, timeStr);
+    const payload = {
+      value: numValue,
+      unit,
+      meal_context: selectedPreset.meal_context,
+      timing: selectedPreset.timing,
+      elapsed_minutes:
+        selectedPreset.timing === "after" && elapsedMinutes.trim()
+          ? Number(elapsedMinutes)
+          : null,
+      measured_at: measuredAt,
+      notes: notes.trim() || null,
+      source: "manual" as const,
+      allowDuplicate,
+    };
+
+    const queueAsOfflineDraft = () => {
+      if (isEditing || !userId) return false;
+      const { allowDuplicate: _ignored, ...draftPayload } = payload;
+      void _ignored;
+      enqueueMeasurementDraft({
+        userId,
+        metricType: "glucose",
+        endpoint: "/api/measurements/glucose",
+        summary: `${numValue} ${unit} (${selectedPreset.label})`,
+        measuredAt,
+        payload: draftPayload,
+      });
+      setDuplicateMessage(null);
+      setValue("");
+      setNotes("");
+      toast.info(
+        "You're offline — saved reading to your draft queue for syncing later."
+      );
+      return true;
+    };
+
+    if (!isEditing && userId && isOfflineOrNetworkError()) {
+      queueAsOfflineDraft();
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const payload = {
-        value: numValue,
-        unit,
-        meal_context: selectedPreset.meal_context,
-        timing: selectedPreset.timing,
-        elapsed_minutes:
-          selectedPreset.timing === "after" && elapsedMinutes.trim()
-            ? Number(elapsedMinutes)
-            : null,
-        measured_at: combineLocalDateTimeToIso(dateStr, timeStr),
-        notes: notes.trim() || null,
-        source: "manual" as const,
-        allowDuplicate,
-      };
-
       const url = initialRecord
         ? `/api/measurements/glucose/${initialRecord.id}`
         : "/api/measurements/glucose";
@@ -207,7 +240,10 @@ export function GlucoseForm({
         isEditing ? "Glucose reading updated" : "Glucose reading saved"
       );
       onSaved();
-    } catch {
+    } catch (error) {
+      if (isOfflineOrNetworkError(error) && queueAsOfflineDraft()) {
+        return;
+      }
       setErrorMsg("Couldn't save your measurement. Check your connection.");
     } finally {
       setIsSubmitting(false);

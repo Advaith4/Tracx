@@ -15,6 +15,10 @@ import {
 } from "@/components/ui/select";
 import type { Tables, WeightUnit } from "@/types/database";
 import {
+  enqueueMeasurementDraft,
+  isOfflineOrNetworkError,
+} from "@/lib/offline/draft-queue";
+import {
   combineLocalDateTimeToIso,
   toLocalDateInputValue,
   toLocalTimeInputValue,
@@ -25,12 +29,14 @@ import {
 } from "./measurement-common-fields";
 
 interface WeightFormProps {
+  userId?: string;
   defaultUnit?: WeightUnit;
   initialRecord?: Tables<"weight_records">;
   onSaved: () => void;
 }
 
 export function WeightForm({
+  userId,
   defaultUnit = "kg",
   initialRecord,
   onSaved,
@@ -61,17 +67,44 @@ export function WeightForm({
       return;
     }
 
+    const measuredAt = combineLocalDateTimeToIso(dateStr, timeStr);
+    const payload = {
+      value: numValue,
+      unit,
+      measured_at: measuredAt,
+      notes: notes.trim() || null,
+      source: "manual" as const,
+      allowDuplicate,
+    };
+
+    const queueAsOfflineDraft = () => {
+      if (isEditing || !userId) return false;
+      const { allowDuplicate: _ignored, ...draftPayload } = payload;
+      void _ignored;
+      enqueueMeasurementDraft({
+        userId,
+        metricType: "weight",
+        endpoint: "/api/measurements/weight",
+        summary: `${numValue} ${unit}`,
+        measuredAt,
+        payload: draftPayload,
+      });
+      setDuplicateMessage(null);
+      setValue("");
+      setNotes("");
+      toast.info(
+        "You're offline — saved reading to your draft queue for syncing later."
+      );
+      return true;
+    };
+
+    if (!isEditing && userId && isOfflineOrNetworkError()) {
+      queueAsOfflineDraft();
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const payload = {
-        value: numValue,
-        unit,
-        measured_at: combineLocalDateTimeToIso(dateStr, timeStr),
-        notes: notes.trim() || null,
-        source: "manual" as const,
-        allowDuplicate,
-      };
-
       const url = initialRecord
         ? `/api/measurements/weight/${initialRecord.id}`
         : "/api/measurements/weight";
@@ -101,7 +134,10 @@ export function WeightForm({
         isEditing ? "Weight reading updated" : "Weight reading saved"
       );
       onSaved();
-    } catch {
+    } catch (error) {
+      if (isOfflineOrNetworkError(error) && queueAsOfflineDraft()) {
+        return;
+      }
       setErrorMsg("Couldn't save your measurement. Check your connection.");
     } finally {
       setIsSubmitting(false);

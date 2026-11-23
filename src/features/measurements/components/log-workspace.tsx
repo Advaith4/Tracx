@@ -42,6 +42,7 @@ import type {
 import { BloodPressureForm } from "./blood-pressure-form";
 import { CustomMetricForm } from "./custom-metric-form";
 import { GlucoseForm } from "./glucose-form";
+import { OfflineDraftQueueBanner } from "./offline-draft-queue-banner";
 import { WeightForm } from "./weight-form";
 
 interface LogWorkspaceProps {
@@ -169,6 +170,8 @@ export function LogWorkspace({
         onSaved={handleSaved}
       />
 
+      <OfflineDraftQueueBanner userId={userId} onSynced={handleSaved} />
+
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-medium text-muted-foreground">
           Or enter a measurement manually
@@ -227,16 +230,22 @@ export function LogWorkspace({
         <CardContent>
           {activeMetric === "glucose" ? (
             <GlucoseForm
+              userId={userId}
               defaultUnit={glucoseUnit}
               contextHint={contextHint}
               onSaved={handleSaved}
             />
           ) : activeMetric === "blood_pressure" ? (
-            <BloodPressureForm onSaved={handleSaved} />
+            <BloodPressureForm userId={userId} onSaved={handleSaved} />
           ) : activeMetric === "weight" ? (
-            <WeightForm defaultUnit={weightUnit} onSaved={handleSaved} />
+            <WeightForm
+              userId={userId}
+              defaultUnit={weightUnit}
+              onSaved={handleSaved}
+            />
           ) : (
             <CustomMetricForm
+              userId={userId}
               customConfigs={customConfigs}
               onSaved={handleSaved}
             />

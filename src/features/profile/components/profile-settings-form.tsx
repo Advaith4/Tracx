@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
+import { PrivacyControlsCard } from "@/features/privacy/components/privacy-controls-card";
 import type { Tables } from "@/types/database";
 import { profileSchema, type ProfileFormValues } from "../schemas";
 
@@ -115,7 +116,8 @@ export function ProfileSettingsForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Personal Details</CardTitle>
@@ -279,5 +281,8 @@ export function ProfileSettingsForm({
         </Button>
       </div>
     </form>
+
+    <PrivacyControlsCard userId={userId} email={email} />
+    </div>
   );
 }

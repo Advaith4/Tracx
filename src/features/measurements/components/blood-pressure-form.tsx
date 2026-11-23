@@ -8,6 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Tables } from "@/types/database";
 import {
+  enqueueMeasurementDraft,
+  isOfflineOrNetworkError,
+} from "@/lib/offline/draft-queue";
+import {
   combineLocalDateTimeToIso,
   toLocalDateInputValue,
   toLocalTimeInputValue,
@@ -18,11 +22,13 @@ import {
 } from "./measurement-common-fields";
 
 interface BloodPressureFormProps {
+  userId?: string;
   initialRecord?: Tables<"blood_pressure_records">;
   onSaved: () => void;
 }
 
 export function BloodPressureForm({
+  userId,
   initialRecord,
   onSaved,
 }: BloodPressureFormProps) {
@@ -58,18 +64,49 @@ export function BloodPressureForm({
       return;
     }
 
+    const measuredAt = combineLocalDateTimeToIso(dateStr, timeStr);
+    const payload = {
+      systolic: sys,
+      diastolic: dia,
+      pulse: pulseNum,
+      measured_at: measuredAt,
+      notes: notes.trim() || null,
+      source: "manual" as const,
+      allowDuplicate,
+    };
+
+    const queueAsOfflineDraft = () => {
+      if (isEditing || !userId) return false;
+      const { allowDuplicate: _ignored, ...draftPayload } = payload;
+      void _ignored;
+      enqueueMeasurementDraft({
+        userId,
+        metricType: "blood_pressure",
+        endpoint: "/api/measurements/blood-pressure",
+        summary: pulseNum
+          ? `${sys}/${dia} mmHg · ${pulseNum} bpm`
+          : `${sys}/${dia} mmHg`,
+        measuredAt,
+        payload: draftPayload,
+      });
+      setDuplicateMessage(null);
+      setSystolic("");
+      setDiastolic("");
+      setPulse("");
+      setNotes("");
+      toast.info(
+        "You're offline — saved reading to your draft queue for syncing later."
+      );
+      return true;
+    };
+
+    if (!isEditing && userId && isOfflineOrNetworkError()) {
+      queueAsOfflineDraft();
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const payload = {
-        systolic: sys,
-        diastolic: dia,
-        pulse: pulseNum,
-        measured_at: combineLocalDateTimeToIso(dateStr, timeStr),
-        notes: notes.trim() || null,
-        source: "manual" as const,
-        allowDuplicate,
-      };
-
       const url = initialRecord
         ? `/api/measurements/blood-pressure/${initialRecord.id}`
         : "/api/measurements/blood-pressure";
@@ -105,7 +142,10 @@ export function BloodPressureForm({
           : "Blood pressure reading saved"
       );
       onSaved();
-    } catch {
+    } catch (error) {
+      if (isOfflineOrNetworkError(error) && queueAsOfflineDraft()) {
+        return;
+      }
       setErrorMsg("Couldn't save your measurement. Check your connection.");
     } finally {
       setIsSubmitting(false);

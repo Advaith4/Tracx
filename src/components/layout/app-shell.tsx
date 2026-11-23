@@ -35,15 +35,16 @@ export function AppShell({ children }: AppShellProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon-lg"
-                type="button"
-                aria-label="Notifications"
-                title="Notifications (coming in Milestone 10)"
-              >
-                <Bell className="size-5 text-muted-foreground" aria-hidden="true" />
-              </Button>
+              <Link href="/notifications" aria-label="Notifications">
+                <Button
+                  variant="ghost"
+                  size="icon-lg"
+                  type="button"
+                  aria-label="Notifications"
+                >
+                  <Bell className="size-5 text-muted-foreground" aria-hidden="true" />
+                </Button>
+              </Link>
             </div>
           </div>
         </header>

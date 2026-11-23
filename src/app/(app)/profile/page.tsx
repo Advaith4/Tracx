@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { SlidersHorizontal } from "lucide-react";
+import { Bell, SlidersHorizontal } from "lucide-react";
 import { LoadingState } from "@/components/layout/feedback-states";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,11 +43,17 @@ async function ProfileContent() {
             and set your daily schedule.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-wrap gap-3">
           <Link href="/profile/tracking">
             <Button size="lg" variant="secondary" type="button">
               <SlidersHorizontal className="size-4" aria-hidden="true" />
               Configure Metrics &amp; Schedules
+            </Button>
+          </Link>
+          <Link href="/profile/reminders">
+            <Button size="lg" variant="outline" type="button">
+              <Bell className="size-4" aria-hidden="true" />
+              Reminders &amp; Notifications
             </Button>
           </Link>
         </CardContent>

@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { Bell, HeartPulse } from "lucide-react";
+import { HeartPulse } from "lucide-react";
 import { BottomNav } from "@/components/navigation/bottom-nav";
 import { DesktopSidebar } from "@/components/navigation/desktop-sidebar";
-import { buttonVariants } from "@/components/ui/button";
+import { HeaderNotificationBell } from "@/components/notifications/header-notification-bell";
+import { LiveReminderMonitor } from "@/components/notifications/live-reminder-monitor";
 import { FloatingAiAssistant } from "@/features/ai-assistant/components/floating-ai-assistant";
-import { cn } from "@/lib/utils";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -37,16 +37,7 @@ export function AppShell({ children }: AppShellProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              <Link
-                href="/notifications"
-                aria-label="Notifications"
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "icon" }),
-                  "rounded-full hover:bg-muted/80"
-                )}
-              >
-                <Bell className="size-4 text-muted-foreground" aria-hidden="true" />
-              </Link>
+              <HeaderNotificationBell />
             </div>
           </div>
         </header>
@@ -56,6 +47,7 @@ export function AppShell({ children }: AppShellProps) {
         </main>
       </div>
 
+      <LiveReminderMonitor />
       <FloatingAiAssistant />
       <BottomNav />
     </div>

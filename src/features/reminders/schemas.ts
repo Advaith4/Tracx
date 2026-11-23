@@ -1,9 +1,29 @@
 import { z } from "zod";
 
 const hhmmRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const encodedMetricTypeRegex =
+  /^(glucose|blood_pressure|weight|custom|appointment|medication)(@\d{4}-\d{2}-\d{2})?$/;
+
+export const REMINDER_CATEGORIES = [
+  "glucose",
+  "blood_pressure",
+  "weight",
+  "appointment",
+  "medication",
+  "custom",
+] as const;
 
 export const reminderSchema = z.object({
-  metric_type: z.enum(["glucose", "blood_pressure", "weight", "custom"]),
+  metric_type: z
+    .string()
+    .trim()
+    .regex(encodedMetricTypeRegex, "Select a valid reminder category."),
+  scheduled_date: z
+    .string()
+    .regex(isoDateRegex, "Use YYYY-MM-DD date format.")
+    .nullable()
+    .optional(),
   label: z
     .string()
     .trim()

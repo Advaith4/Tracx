@@ -557,9 +557,17 @@ export function InsightsWorkspace({
                           <span>
                             {activeDay.weekday}, {activeDay.shortLabel}
                           </span>
-                          <span className="tabular-nums text-primary">
-                            {activeDay.loggedCount} logged
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="tabular-nums text-primary">
+                              {activeDay.loggedCount} logged
+                            </span>
+                            <Link
+                              href={`/calendar?date=${activeDay.date}`}
+                              className="font-medium text-primary hover:underline"
+                            >
+                              Day stats &rarr;
+                            </Link>
+                          </div>
                         </div>
                         {activeDay.dailyNote ? (
                           <p className="mt-1.5 flex items-start gap-1.5 text-muted-foreground">

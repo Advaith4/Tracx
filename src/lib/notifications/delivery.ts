@@ -5,6 +5,9 @@ import { getLocalDateString, safeTimezone } from "@/lib/calculations/daily-statu
 import {
   buildPrivacySafeNotificationCopy,
   evaluateReminderDueState,
+  isMeasurementReminderCategory,
+  parseReminderMetricMeta,
+  type ReminderCategory,
 } from "@/lib/notifications/reminder-logic";
 import type { Database, Tables } from "@/types/database";
 
@@ -169,11 +172,24 @@ export async function processDueRemindersForUser(params: {
   const activeSubs = subsRes.data ?? [];
   const profileTz = safeTimezone(profileRes.data?.timezone);
 
-  const dispatched: Array<{ reminderId: string; status: string }> = [];
+  const dispatched: Array<{
+    reminderId: string;
+    logId: string | null;
+    label: string;
+    category: ReminderCategory;
+    scheduledDate: string | null;
+    scheduledTime: string;
+    channel: string;
+    status: string;
+    errorMessage: string | null;
+  }> = [];
 
   for (const reminder of reminders) {
     const tz = safeTimezone(reminder.timezone || profileTz);
     const todayDate = getLocalDateString(now, tz);
+    const { category, scheduledDate } = parseReminderMetricMeta(
+      reminder.metric_type
+    );
 
     const completedToday = new Set<string>();
     if (
@@ -233,7 +249,9 @@ export async function processDueRemindersForUser(params: {
               subscription: sub,
               title: copy.title,
               body: copy.body,
-              url: `/log?metric=${reminder.metric_type}`,
+              url: isMeasurementReminderCategory(category)
+                ? `/log?metric=${category}`
+                : `/calendar?date=${todayDate}`,
             })
           )
         );
@@ -259,17 +277,31 @@ export async function processDueRemindersForUser(params: {
       }
     }
 
-    await params.supabase.from("notification_logs").insert({
-      user_id: params.userId,
-      reminder_id: reminder.id,
-      scheduled_for: now.toISOString(),
-      sent_at: deliveryStatus === "sent" ? now.toISOString() : null,
+    const { data: insertedLog } = await params.supabase
+      .from("notification_logs")
+      .insert({
+        user_id: params.userId,
+        reminder_id: reminder.id,
+        scheduled_for: now.toISOString(),
+        sent_at: deliveryStatus === "sent" ? now.toISOString() : null,
+        channel: reminder.channel,
+        status: deliveryStatus,
+        error_message: errorMessage,
+      })
+      .select("id")
+      .maybeSingle();
+
+    dispatched.push({
+      reminderId: reminder.id,
+      logId: insertedLog?.id ?? null,
+      label: reminder.label,
+      category,
+      scheduledDate,
+      scheduledTime: reminder.scheduled_time.slice(0, 5),
       channel: reminder.channel,
       status: deliveryStatus,
-      error_message: errorMessage,
+      errorMessage,
     });
-
-    dispatched.push({ reminderId: reminder.id, status: deliveryStatus });
   }
 
   return dispatched;

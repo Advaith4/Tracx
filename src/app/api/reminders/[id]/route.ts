@@ -1,5 +1,11 @@
 import { reminderSchema } from "@/features/reminders/schemas";
+import {
+  encodeReminderMetricType,
+  getWeekdayFromDateString,
+  parseReminderMetricMeta,
+} from "@/lib/notifications/reminder-logic";
 import { apiError, apiSuccess, requireApiUser } from "@/lib/supabase/api-helpers";
+import type { Database } from "@/types/database";
 
 export async function PATCH(
   request: Request,
@@ -20,9 +26,26 @@ export async function PATCH(
     );
   }
 
+  const { scheduled_date, ...rest } = parsed.data;
+  const updatePayload: Database["public"]["Tables"]["reminders"]["Update"] = {
+    ...rest,
+  };
+
+  if (rest.metric_type !== undefined || scheduled_date !== undefined) {
+    const encoded = encodeReminderMetricType(
+      rest.metric_type ?? "custom",
+      scheduled_date
+    );
+    const { scheduledDate } = parseReminderMetricMeta(encoded);
+    updatePayload.metric_type = encoded;
+    if (scheduledDate) {
+      updatePayload.days_of_week = [getWeekdayFromDateString(scheduledDate)];
+    }
+  }
+
   const { data, error } = await supabase
     .from("reminders")
-    .update(parsed.data)
+    .update(updatePayload)
     .eq("id", id)
     .eq("user_id", user.id)
     .select("*")

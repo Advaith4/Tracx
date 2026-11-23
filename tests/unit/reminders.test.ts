@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPrivacySafeNotificationCopy,
+  encodeReminderMetricType,
   evaluateReminderDueState,
   isTimeInQuietHours,
+  parseReminderMetricMeta,
 } from "@/lib/notifications/reminder-logic";
 import type { Tables } from "@/types/database";
 
@@ -91,5 +93,66 @@ describe("reminder-logic", () => {
       ],
     });
     expect(followUp.shouldSendFollowUp).toBe(true);
+  });
+
+  it("encodes and evaluates date-specific reminders and appointments accurately", () => {
+    const encoded = encodeReminderMetricType("appointment", "2026-11-26");
+    expect(encoded).toBe("appointment@2026-11-26");
+    expect(parseReminderMetricMeta(encoded)).toEqual({
+      category: "appointment",
+      scheduledDate: "2026-11-26",
+    });
+
+    const reminder = makeReminder({
+      metric_type: encoded,
+      label: "OB Ultrasound",
+      scheduled_time: "10:00:00",
+    });
+
+    // Wrong date -> must not fire
+    const wrongDay = evaluateReminderDueState({
+      reminder,
+      referenceDate: new Date("2026-11-25T10:15:00.000Z"),
+      completedMetricTypesToday: new Set(["glucose"]),
+      todayLogsForReminder: [],
+    });
+    expect(wrongDay.shouldSendInitial).toBe(false);
+    expect(wrongDay.reason).toBe("not_scheduled_today");
+
+    // Matching date -> fires even if health measurements were logged that day
+    const exactDay = evaluateReminderDueState({
+      reminder,
+      referenceDate: new Date("2026-11-26T10:05:00.000Z"),
+      completedMetricTypesToday: new Set(["glucose", "blood_pressure"]),
+      todayLogsForReminder: [],
+    });
+    expect(exactDay.shouldSendInitial).toBe(true);
+    expect(exactDay.reason).toBe("due");
+  });
+
+  it("respects active snooze windows before re-firing", () => {
+    const reminder = makeReminder({ scheduled_time: "08:00:00" });
+    const result = evaluateReminderDueState({
+      reminder,
+      referenceDate: new Date("2026-11-23T08:10:00.000Z"),
+      completedMetricTypesToday: new Set(),
+      todayLogsForReminder: [
+        {
+          id: "log-snooze",
+          user_id: "user-1",
+          reminder_id: "rem-1",
+          scheduled_for: "2026-11-23T08:05:00.000Z",
+          sent_at: null,
+          read_at: "2026-11-23T08:06:00.000Z",
+          channel: "in_app",
+          status: "skipped",
+          error_message:
+            "Snoozed for 15 minutes (until 2026-11-23T08:21:00.000Z)",
+          created_at: "2026-11-23T08:05:00.000Z",
+        },
+      ],
+    });
+    expect(result.shouldSendInitial).toBe(false);
+    expect(result.reason).toBe("snoozed");
   });
 });

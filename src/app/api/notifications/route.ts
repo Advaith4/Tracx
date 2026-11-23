@@ -1,5 +1,6 @@
 import { notificationActionSchema } from "@/features/reminders/schemas";
 import { processDueRemindersForUser } from "@/lib/notifications/delivery";
+import { parseReminderMetricMeta } from "@/lib/notifications/reminder-logic";
 import { apiError, apiSuccess, requireApiUser } from "@/lib/supabase/api-helpers";
 
 export async function GET() {
@@ -30,15 +31,20 @@ export async function GET() {
     (remindersRes.data ?? []).map((r) => [r.id, r])
   );
 
-  const items = (logsRes.data ?? []).map((log) => ({
-    ...log,
-    reminderLabel: log.reminder_id
-      ? reminderMap.get(log.reminder_id)?.label ?? "Scheduled Check-in"
-      : "Scheduled Check-in",
-    metricType: log.reminder_id
+  const items = (logsRes.data ?? []).map((log) => {
+    const rawMetricType = log.reminder_id
       ? reminderMap.get(log.reminder_id)?.metric_type ?? "glucose"
-      : "glucose",
-  }));
+      : "glucose";
+    const meta = parseReminderMetricMeta(rawMetricType);
+    return {
+      ...log,
+      reminderLabel: log.reminder_id
+        ? reminderMap.get(log.reminder_id)?.label ?? "Scheduled Check-in"
+        : "Scheduled Check-in",
+      metricType: meta.category,
+      scheduledDate: meta.scheduledDate,
+    };
+  });
 
   return apiSuccess(items);
 }

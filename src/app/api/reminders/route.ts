@@ -1,4 +1,9 @@
 import { reminderSchema } from "@/features/reminders/schemas";
+import {
+  encodeReminderMetricType,
+  getWeekdayFromDateString,
+  parseReminderMetricMeta,
+} from "@/lib/notifications/reminder-logic";
 import { apiError, apiSuccess, requireApiUser } from "@/lib/supabase/api-helpers";
 
 export async function GET() {
@@ -34,15 +39,24 @@ export async function POST(request: Request) {
   }
 
   const values = parsed.data;
+  const encodedMetricType = encodeReminderMetricType(
+    values.metric_type,
+    values.scheduled_date
+  );
+  const { scheduledDate } = parseReminderMetricMeta(encodedMetricType);
+  const resolvedDaysOfWeek = scheduledDate
+    ? [getWeekdayFromDateString(scheduledDate)]
+    : values.days_of_week;
+
   const { data, error } = await supabase
     .from("reminders")
     .insert({
       user_id: user.id,
-      metric_type: values.metric_type,
+      metric_type: encodedMetricType,
       label: values.label,
       scheduled_time: values.scheduled_time,
       timezone: values.timezone,
-      days_of_week: values.days_of_week,
+      days_of_week: resolvedDaysOfWeek,
       channel: values.channel,
       enabled: values.enabled,
       follow_up_minutes: values.follow_up_minutes ?? null,

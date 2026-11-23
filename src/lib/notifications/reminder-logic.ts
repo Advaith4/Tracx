@@ -5,6 +5,93 @@ import {
 } from "@/lib/calculations/daily-status";
 import type { Tables } from "@/types/database";
 
+export type ReminderCategory =
+  | "glucose"
+  | "blood_pressure"
+  | "weight"
+  | "custom"
+  | "appointment"
+  | "medication";
+
+const VALID_CATEGORIES = new Set<ReminderCategory>([
+  "glucose",
+  "blood_pressure",
+  "weight",
+  "custom",
+  "appointment",
+  "medication",
+]);
+
+const DATE_SUFFIX_REGEX = /^([a-z_]+)@(\d{4}-\d{2}-\d{2})$/;
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+export function parseReminderMetricMeta(rawMetricType: string): {
+  category: ReminderCategory;
+  scheduledDate: string | null;
+} {
+  const match = DATE_SUFFIX_REGEX.exec(rawMetricType.trim());
+  if (match) {
+    const rawCat = match[1] as ReminderCategory;
+    return {
+      category: VALID_CATEGORIES.has(rawCat) ? rawCat : "custom",
+      scheduledDate: match[2],
+    };
+  }
+  const normalized = rawMetricType.trim() as ReminderCategory;
+  return {
+    category: VALID_CATEGORIES.has(normalized) ? normalized : "custom",
+    scheduledDate: null,
+  };
+}
+
+export function encodeReminderMetricType(
+  rawMetricType: string,
+  scheduledDate?: string | null
+): string {
+  const { category, scheduledDate: embeddedDate } =
+    parseReminderMetricMeta(rawMetricType);
+  const resolvedDate =
+    scheduledDate === undefined ? embeddedDate : scheduledDate;
+  if (resolvedDate && ISO_DATE_REGEX.test(resolvedDate)) {
+    return `${category}@${resolvedDate}`;
+  }
+  return category;
+}
+
+export function getReminderCategoryLabel(category: ReminderCategory): string {
+  switch (category) {
+    case "glucose":
+      return "Blood Glucose";
+    case "blood_pressure":
+      return "Blood Pressure";
+    case "weight":
+      return "Weight";
+    case "appointment":
+      return "OB / Care Appointment";
+    case "medication":
+      return "Medication / Vitamin";
+    case "custom":
+      return "Custom Reminder";
+  }
+}
+
+export function isMeasurementReminderCategory(
+  category: ReminderCategory
+): boolean {
+  return (
+    category === "glucose" ||
+    category === "blood_pressure" ||
+    category === "weight" ||
+    category === "custom"
+  );
+}
+
+export function getWeekdayFromDateString(dateStr: string): number {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return 0;
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
 const WEEKDAY_INDEX: Record<string, number> = {
   Sun: 0,
   Mon: 1,
@@ -88,13 +175,28 @@ export function evaluateReminderDueState(params: {
   }
 
   const tz = safeTimezone(reminder.timezone);
-  const weekday = getLocalWeekday(referenceDate, tz);
-  if (!reminder.days_of_week.includes(weekday)) {
-    return {
-      shouldSendInitial: false,
-      shouldSendFollowUp: false,
-      reason: "not_scheduled_today",
-    };
+  const todayDate = getLocalDateString(referenceDate, tz);
+  const { category, scheduledDate } = parseReminderMetricMeta(
+    reminder.metric_type
+  );
+
+  if (scheduledDate) {
+    if (todayDate !== scheduledDate) {
+      return {
+        shouldSendInitial: false,
+        shouldSendFollowUp: false,
+        reason: "not_scheduled_today",
+      };
+    }
+  } else {
+    const weekday = getLocalWeekday(referenceDate, tz);
+    if (!reminder.days_of_week.includes(weekday)) {
+      return {
+        shouldSendInitial: false,
+        shouldSendFollowUp: false,
+        reason: "not_scheduled_today",
+      };
+    }
   }
 
   const nowHHMM = getLocalHHMM(referenceDate, tz);
@@ -112,7 +214,10 @@ export function evaluateReminderDueState(params: {
     };
   }
 
-  if (completedMetricTypesToday.has(reminder.metric_type)) {
+  if (
+    isMeasurementReminderCategory(category) &&
+    completedMetricTypesToday.has(category)
+  ) {
     return {
       shouldSendInitial: false,
       shouldSendFollowUp: false,
@@ -129,7 +234,30 @@ export function evaluateReminderDueState(params: {
     };
   }
 
-  const todayDate = getLocalDateString(referenceDate, tz);
+  // Respect active snooze timers logged today
+  const snoozedLogsToday = todayLogsForReminder.filter((log) => {
+    const logDate = getLocalDateString(new Date(log.scheduled_for), tz);
+    return (
+      logDate === todayDate &&
+      log.status === "skipped" &&
+      Boolean(log.error_message?.includes("Snoozed"))
+    );
+  });
+
+  for (const snoozeLog of snoozedLogsToday) {
+    const match = /\(until ([^)]+)\)/.exec(snoozeLog.error_message ?? "");
+    if (match?.[1]) {
+      const snoozeUntilMs = new Date(match[1]).getTime();
+      if (Number.isFinite(snoozeUntilMs) && referenceDate.getTime() < snoozeUntilMs) {
+        return {
+          shouldSendInitial: false,
+          shouldSendFollowUp: false,
+          reason: "snoozed",
+        };
+      }
+    }
+  }
+
   const sentToday = todayLogsForReminder.filter((log) => {
     const logDate = getLocalDateString(new Date(log.scheduled_for), tz);
     return (

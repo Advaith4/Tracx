@@ -31,6 +31,10 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { formatTime12h } from "@/features/tracking-config/schedule-utils";
+import {
+  getReminderCategoryLabel,
+  parseReminderMetricMeta,
+} from "@/lib/notifications/reminder-logic";
 import type { NotificationChannel, Tables } from "@/types/database";
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
@@ -80,7 +84,12 @@ export function RemindersManager({
   const [dispatching, setDispatching] = useState(false);
 
   const [metricType, setMetricType] = useState<
-    "glucose" | "blood_pressure" | "weight" | "custom"
+    | "glucose"
+    | "blood_pressure"
+    | "weight"
+    | "appointment"
+    | "medication"
+    | "custom"
   >("glucose");
   const [label, setLabel] = useState("");
   const [scheduledTime, setScheduledTime] = useState("08:00");
@@ -358,7 +367,13 @@ export function RemindersManager({
                   onValueChange={(next) => {
                     if (next) {
                       setMetricType(
-                        next as "glucose" | "blood_pressure" | "weight" | "custom"
+                        next as
+                          | "glucose"
+                          | "blood_pressure"
+                          | "weight"
+                          | "appointment"
+                          | "medication"
+                          | "custom"
                       );
                     }
                   }}
@@ -372,7 +387,11 @@ export function RemindersManager({
                             ? "Blood Pressure"
                             : value === "weight"
                               ? "Weight"
-                              : "Custom Metric"
+                              : value === "appointment"
+                                ? "OB / Care Appointment"
+                                : value === "medication"
+                                  ? "Medication / Vitamin"
+                                  : "Custom Metric"
                       }
                     </SelectValue>
                   </SelectTrigger>
@@ -380,6 +399,8 @@ export function RemindersManager({
                     <SelectItem value="glucose">Blood Glucose</SelectItem>
                     <SelectItem value="blood_pressure">Blood Pressure</SelectItem>
                     <SelectItem value="weight">Weight</SelectItem>
+                    <SelectItem value="appointment">OB / Care Appointment</SelectItem>
+                    <SelectItem value="medication">Medication / Vitamin</SelectItem>
                     <SelectItem value="custom">Custom Metric</SelectItem>
                   </SelectContent>
                 </Select>
@@ -549,49 +570,57 @@ export function RemindersManager({
           />
         ) : (
           <div className="flex flex-col gap-3">
-            {reminders.map((rem) => (
-              <Card key={rem.id} size="sm">
-                <CardContent className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-foreground">
-                        {rem.label}
-                      </span>
-                      <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
-                        {rem.channel.replace("_", "-")}
+            {reminders.map((rem) => {
+              const meta = parseReminderMetricMeta(rem.metric_type);
+              return (
+                <Card key={rem.id} size="sm">
+                  <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground">
+                          {rem.label}
+                        </span>
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                          {rem.channel.replace("_", "-")}
+                        </span>
+                        {meta.scheduledDate ? (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                            {meta.scheduledDate}
+                          </span>
+                        ) : null}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {formatTime12h(rem.scheduled_time.slice(0, 5))} ·{" "}
+                        {getReminderCategoryLabel(meta.category)}
+                        {rem.follow_up_minutes
+                          ? ` · Follow-up +${rem.follow_up_minutes}m`
+                          : ""}
                       </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {formatTime12h(rem.scheduled_time.slice(0, 5))} ·{" "}
-                      {rem.metric_type.replace("_", " ")}
-                      {rem.follow_up_minutes
-                        ? ` · Follow-up +${rem.follow_up_minutes}m`
-                        : ""}
-                    </span>
-                  </div>
 
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={rem.enabled}
-                      aria-label={`Toggle ${rem.label}`}
-                      onCheckedChange={(checked) =>
-                        toggleMutation.mutate({ id: rem.id, enabled: checked })
-                      }
-                    />
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      type="button"
-                      aria-label={`Delete ${rem.label}`}
-                      onClick={() => deleteMutation.mutate(rem.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="size-4" aria-hidden="true" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={rem.enabled}
+                        aria-label={`Toggle ${rem.label}`}
+                        onCheckedChange={(checked) =>
+                          toggleMutation.mutate({ id: rem.id, enabled: checked })
+                        }
+                      />
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        type="button"
+                        aria-label={`Delete ${rem.label}`}
+                        onClick={() => deleteMutation.mutate(rem.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="size-4" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </section>

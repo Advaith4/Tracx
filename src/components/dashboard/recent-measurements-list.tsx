@@ -55,11 +55,11 @@ export function RecentMeasurementsList({
         />
       ) : (
         <Card size="sm">
-          <CardContent className="divide-y divide-border p-0">
+          <CardContent className="flex flex-col gap-1">
             {records.map((record) => (
               <div
                 key={record.id}
-                className="flex items-center justify-between gap-3 px-4 py-3"
+                className="flex items-center justify-between gap-3 rounded-xl px-2.5 py-2 transition-colors hover:bg-muted/45"
               >
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <div className="flex items-center gap-2">

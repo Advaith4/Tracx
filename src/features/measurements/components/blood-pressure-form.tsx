@@ -23,12 +23,16 @@ import {
 
 interface BloodPressureFormProps {
   userId?: string;
+  timezone?: string;
+  initialNowIso?: string;
   initialRecord?: Tables<"blood_pressure_records">;
   onSaved: () => void;
 }
 
 export function BloodPressureForm({
   userId,
+  timezone,
+  initialNowIso,
   initialRecord,
   onSaved,
 }: BloodPressureFormProps) {
@@ -43,10 +47,10 @@ export function BloodPressureForm({
     initialRecord?.pulse ? String(initialRecord.pulse) : ""
   );
   const [dateStr, setDateStr] = useState(() =>
-    toLocalDateInputValue(initialRecord?.measured_at)
+    toLocalDateInputValue(initialRecord?.measured_at ?? initialNowIso, timezone)
   );
   const [timeStr, setTimeStr] = useState(() =>
-    toLocalTimeInputValue(initialRecord?.measured_at)
+    toLocalTimeInputValue(initialRecord?.measured_at ?? initialNowIso, timezone)
   );
   const [notes, setNotes] = useState(initialRecord?.notes ?? "");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);

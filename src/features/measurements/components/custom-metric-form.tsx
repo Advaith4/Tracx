@@ -27,6 +27,8 @@ import { MeasurementDateTimeFields } from "./measurement-common-fields";
 
 interface CustomMetricFormProps {
   userId?: string;
+  timezone?: string;
+  initialNowIso?: string;
   customConfigs: Tables<"tracking_configs">[];
   initialRecord?: Tables<"custom_metric_records">;
   onSaved: () => void;
@@ -34,6 +36,8 @@ interface CustomMetricFormProps {
 
 export function CustomMetricForm({
   userId,
+  timezone,
+  initialNowIso,
   customConfigs,
   initialRecord,
   onSaved,
@@ -50,10 +54,10 @@ export function CustomMetricForm({
     return initialRecord.value_text ?? "";
   });
   const [dateStr, setDateStr] = useState(() =>
-    toLocalDateInputValue(initialRecord?.measured_at)
+    toLocalDateInputValue(initialRecord?.measured_at ?? initialNowIso, timezone)
   );
   const [timeStr, setTimeStr] = useState(() =>
-    toLocalTimeInputValue(initialRecord?.measured_at)
+    toLocalTimeInputValue(initialRecord?.measured_at ?? initialNowIso, timezone)
   );
   const [notes, setNotes] = useState(initialRecord?.notes ?? "");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -167,7 +171,14 @@ export function CustomMetricForm({
             }}
           >
             <SelectTrigger id="custom-metric-select" className="h-11 w-full">
-              <SelectValue placeholder="Choose metric" />
+              <SelectValue placeholder="Choose metric">
+                {(value: string | null) => {
+                  const match = customConfigs.find((cfg) => cfg.id === value);
+                  return match
+                    ? `${match.custom_label || "Custom"} (${match.unit})`
+                    : "Choose metric";
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {customConfigs.map((cfg) => (

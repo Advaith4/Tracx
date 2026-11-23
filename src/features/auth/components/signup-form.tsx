@@ -213,7 +213,11 @@ export function SignupForm() {
               }}
             >
               <SelectTrigger id="signup-locale" className="h-11 w-full">
-                <SelectValue placeholder="Select language" />
+                <SelectValue placeholder="Select language">
+                  {(value: string | null) =>
+                    value === "en" ? "English" : value || "Select language"
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="en">English</SelectItem>

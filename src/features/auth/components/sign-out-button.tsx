@@ -30,7 +30,7 @@ export function SignOutButton() {
   return (
     <Button
       size="lg"
-      variant="outline"
+      variant="secondary"
       type="button"
       disabled={signingOut}
       onClick={handleSignOut}

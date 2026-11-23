@@ -14,9 +14,10 @@ import {
 } from "lucide-react";
 import { EmptyState } from "@/components/layout/feedback-states";
 import { StatusBadge } from "@/components/layout/status-badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TodayScheduledTask } from "@/features/tracking-config/schedule-utils";
+import { cn } from "@/lib/utils";
 
 export interface DashboardTaskItem extends TodayScheduledTask {
   recordedValue?: string;
@@ -79,9 +80,12 @@ export function TodayScheduleList({ items, todayDate }: TodayScheduleListProps) 
     return (
       <div
         key={item.id}
-        className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors ${
-          highlight ? "bg-amber-50/40 dark:bg-amber-950/15" : ""
-        }`}
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition-colors",
+          highlight
+            ? "bg-amber-50/75 dark:bg-amber-950/25"
+            : "bg-muted/30 hover:bg-muted/55"
+        )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3.5">
           <div className="hidden w-16 shrink-0 flex-col text-left sm:flex">
@@ -110,7 +114,7 @@ export function TodayScheduleList({ items, todayDate }: TodayScheduleListProps) 
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5">
           {item.recordedValue ? (
             <span className="rounded-lg bg-secondary/70 px-2.5 py-1 text-xs font-semibold text-secondary-foreground tabular-nums">
               {item.recordedValue}
@@ -133,16 +137,16 @@ export function TodayScheduleList({ items, todayDate }: TodayScheduleListProps) 
               </Button>
               <Link
                 href={`/log?metric=${item.metricType}&context=${encodeURIComponent(item.context)}`}
+                className={cn(
+                  buttonVariants({
+                    size: "sm",
+                    variant: highlight ? "default" : "secondary",
+                  }),
+                  "rounded-lg"
+                )}
               >
-                <Button
-                  size="sm"
-                  variant={highlight ? "default" : "secondary"}
-                  type="button"
-                  className="rounded-lg"
-                >
-                  <Plus className="size-3.5" aria-hidden="true" />
-                  Log
-                </Button>
+                <Plus className="size-3.5" aria-hidden="true" />
+                Log
               </Link>
             </>
           ) : null}
@@ -185,50 +189,45 @@ export function TodayScheduleList({ items, todayDate }: TodayScheduleListProps) 
           title="No check-ins scheduled for today"
           description="You can still log any measurement manually or add scheduled times in your tracking configuration."
           action={
-            <Link href="/profile/tracking">
-              <Button size="lg" variant="outline" type="button">
-                Edit Schedule
-              </Button>
+            <Link
+              href="/profile/tracking"
+              className={buttonVariants({ size: "lg", variant: "secondary" })}
+            >
+              Edit Schedule
             </Link>
           }
         />
       ) : (
-        <Card className="overflow-hidden border-border/80">
-          <CardContent className="p-0">
+        <Card>
+          <CardContent className="flex flex-col gap-4">
             {dueNowTasks.length > 0 ? (
-              <div>
-                <div className="border-b border-border/70 bg-amber-50/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+              <div className="flex flex-col gap-1.5">
+                <span className="px-1 text-[11px] font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-300">
                   Due Now ({dueNowTasks.length})
-                </div>
-                <div className="divide-y divide-border/70">
+                </span>
+                <div className="flex flex-col gap-1.5">
                   {dueNowTasks.map((item) => renderTaskRow(item, true))}
                 </div>
               </div>
             ) : null}
 
             {upcomingTasks.length > 0 ? (
-              <div className={dueNowTasks.length > 0 ? "border-t border-border/80" : ""}>
-                <div className="border-b border-border/70 bg-muted/35 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="flex flex-col gap-1.5">
+                <span className="px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Later Today ({upcomingTasks.length})
-                </div>
-                <div className="divide-y divide-border/70">
+                </span>
+                <div className="flex flex-col gap-1.5">
                   {upcomingTasks.map((item) => renderTaskRow(item, false))}
                 </div>
               </div>
             ) : null}
 
             {finishedTasks.length > 0 ? (
-              <div
-                className={
-                  dueNowTasks.length > 0 || upcomingTasks.length > 0
-                    ? "border-t border-border/80"
-                    : ""
-                }
-              >
+              <div className="flex flex-col gap-1.5">
                 <button
                   type="button"
                   onClick={() => setShowCompleted((prev) => !prev)}
-                  className="flex w-full items-center justify-between bg-muted/20 px-4 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                  className="flex w-full items-center justify-between rounded-xl bg-muted/35 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                 >
                   <span>
                     Completed &amp; Skipped ({finishedTasks.length})
@@ -240,7 +239,7 @@ export function TodayScheduleList({ items, todayDate }: TodayScheduleListProps) 
                   )}
                 </button>
                 {showCompleted ? (
-                  <div className="divide-y divide-border/70 border-t border-border/70">
+                  <div className="flex flex-col gap-1.5 pt-0.5">
                     {finishedTasks.map((item) => renderTaskRow(item, false))}
                   </div>
                 ) : null}

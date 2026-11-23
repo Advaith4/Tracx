@@ -30,6 +30,8 @@ import {
 
 interface WeightFormProps {
   userId?: string;
+  timezone?: string;
+  initialNowIso?: string;
   defaultUnit?: WeightUnit;
   initialRecord?: Tables<"weight_records">;
   onSaved: () => void;
@@ -37,6 +39,8 @@ interface WeightFormProps {
 
 export function WeightForm({
   userId,
+  timezone,
+  initialNowIso,
   defaultUnit = "kg",
   initialRecord,
   onSaved,
@@ -49,10 +53,10 @@ export function WeightForm({
     initialRecord?.unit ?? defaultUnit
   );
   const [dateStr, setDateStr] = useState(() =>
-    toLocalDateInputValue(initialRecord?.measured_at)
+    toLocalDateInputValue(initialRecord?.measured_at ?? initialNowIso, timezone)
   );
   const [timeStr, setTimeStr] = useState(() =>
-    toLocalTimeInputValue(initialRecord?.measured_at)
+    toLocalTimeInputValue(initialRecord?.measured_at ?? initialNowIso, timezone)
   );
   const [notes, setNotes] = useState(initialRecord?.notes ?? "");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -188,7 +192,9 @@ export function WeightForm({
               }}
             >
               <SelectTrigger id="weight-unit" className="h-11 w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(value: string | null) => value || "kg"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="kg">kg</SelectItem>

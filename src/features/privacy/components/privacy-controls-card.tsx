@@ -108,8 +108,8 @@ export function PrivacyControlsCard({ userId, email }: PrivacyControlsCardProps)
             permanently remove your account and stored data.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2 rounded-xl border border-border/80 bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <CardContent className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 rounded-xl bg-muted/45 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col gap-0.5">
               <span className="text-sm font-medium text-foreground">
                 Export Personal Health Data
@@ -121,7 +121,7 @@ export function PrivacyControlsCard({ userId, email }: PrivacyControlsCardProps)
               </span>
             </div>
             <Button
-              variant="outline"
+              variant="secondary"
               size="lg"
               type="button"
               disabled={isExporting}
@@ -142,7 +142,7 @@ export function PrivacyControlsCard({ userId, email }: PrivacyControlsCardProps)
             </Button>
           </div>
 
-          <div className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-xl bg-destructive/6 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col gap-0.5">
               <span className="text-sm font-medium text-destructive">
                 Delete Account &amp; All Data

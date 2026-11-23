@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Mic, Plus, SlidersHorizontal } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { DailyNoteCard } from "./daily-note-card";
 import { DailyProgressCard } from "./daily-progress-card";
 import { GreetingHeader } from "./greeting-header";
@@ -49,37 +50,36 @@ export function DashboardView({
         <GreetingHeader name={displayName} />
 
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/log?mode=voice">
-            <Button size="default" className="gap-2 rounded-full px-4 shadow-xs" type="button">
-              <Mic className="size-4" aria-hidden="true" />
-              Voice Log
-            </Button>
+          <Link
+            href="/log?mode=voice"
+            className={cn(
+              buttonVariants({ size: "default" }),
+              "gap-2 rounded-full px-4 shadow-xs"
+            )}
+          >
+            <Mic className="size-4" aria-hidden="true" />
+            Voice Log
           </Link>
-          <Link href="/log?mode=manual">
-            <Button
-              size="default"
-              variant="outline"
-              className="gap-1.5 rounded-full bg-card px-4"
-              type="button"
-            >
-              <Plus className="size-4" aria-hidden="true" />
-              Add Entry
-            </Button>
+          <Link
+            href="/log?mode=manual"
+            className={cn(
+              buttonVariants({ size: "default", variant: "secondary" }),
+              "gap-1.5 rounded-full px-4"
+            )}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            Add Entry
           </Link>
           <Link
             href="/profile/tracking"
             aria-label="Tracking Settings"
             title="Tracking Settings"
+            className={cn(
+              buttonVariants({ size: "icon", variant: "ghost" }),
+              "rounded-full bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
           >
-            <Button
-              size="icon"
-              variant="outline"
-              className="rounded-full bg-card text-muted-foreground hover:text-foreground"
-              type="button"
-              aria-label="Tracking Settings"
-            >
-              <SlidersHorizontal className="size-4" aria-hidden="true" />
-            </Button>
+            <SlidersHorizontal className="size-4" aria-hidden="true" />
           </Link>
         </div>
       </div>

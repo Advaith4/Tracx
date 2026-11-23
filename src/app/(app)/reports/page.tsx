@@ -32,12 +32,14 @@ async function AuthenticatedReports() {
       .limit(24),
   ]);
 
-  const defaults = getDefaultWeeklyPeriod(profileRes.data?.timezone ?? "UTC");
+  const timezone = profileRes.data?.timezone ?? "UTC";
+  const defaults = getDefaultWeeklyPeriod(timezone);
   const initialReports = (reportsRes.data ?? []).map(hydrateWeeklyReport);
 
   return (
     <ReportsWorkspace
       userId={user.id}
+      timezone={timezone}
       defaultPeriodStart={defaults.periodStart}
       defaultPeriodEnd={defaults.periodEnd}
       initialReports={initialReports}

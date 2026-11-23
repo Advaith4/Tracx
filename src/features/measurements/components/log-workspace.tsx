@@ -46,6 +46,7 @@ import { WeightForm } from "./weight-form";
 interface LogWorkspaceProps {
   userId: string;
   timezone: string;
+  initialNowIso: string;
   autoFocusVoice?: boolean;
   initialMetric: MetricType;
   contextHint?: string | null;
@@ -78,6 +79,7 @@ function getDeleteEndpoint(item: UnifiedMeasurement): string {
 export function LogWorkspace({
   userId,
   timezone,
+  initialNowIso,
   autoFocusVoice = false,
   initialMetric,
   contextHint,
@@ -180,7 +182,7 @@ export function LogWorkspace({
             <div
               role="tablist"
               aria-label="Measurement type"
-              className="grid grid-cols-2 gap-1 rounded-xl border border-border/80 bg-muted/50 p-1 sm:flex sm:flex-wrap"
+              className="grid grid-cols-2 gap-1 rounded-xl bg-muted/60 p-1 sm:flex sm:flex-wrap"
             >
               {metricTabs.map((tab) => {
                 const Icon = tab.icon;
@@ -225,21 +227,32 @@ export function LogWorkspace({
                 {activeMetric === "glucose" ? (
                   <GlucoseForm
                     userId={userId}
+                    timezone={timezone}
+                    initialNowIso={initialNowIso}
                     defaultUnit={glucoseUnit}
                     contextHint={contextHint}
                     onSaved={handleSaved}
                   />
                 ) : activeMetric === "blood_pressure" ? (
-                  <BloodPressureForm userId={userId} onSaved={handleSaved} />
+                  <BloodPressureForm
+                    userId={userId}
+                    timezone={timezone}
+                    initialNowIso={initialNowIso}
+                    onSaved={handleSaved}
+                  />
                 ) : activeMetric === "weight" ? (
                   <WeightForm
                     userId={userId}
+                    timezone={timezone}
+                    initialNowIso={initialNowIso}
                     defaultUnit={weightUnit}
                     onSaved={handleSaved}
                   />
                 ) : (
                   <CustomMetricForm
                     userId={userId}
+                    timezone={timezone}
+                    initialNowIso={initialNowIso}
                     customConfigs={customConfigs}
                     onSaved={handleSaved}
                   />
@@ -271,12 +284,12 @@ export function LogWorkspace({
                 description="Save your first reading and it will appear here and on your Home dashboard."
               />
             ) : (
-              <Card size="sm" className="border-border/80">
-                <CardContent className="divide-y divide-border/70 p-0">
+              <Card size="sm">
+                <CardContent className="flex flex-col gap-1">
                   {measurements.map((item) => (
                     <div
                       key={`${item.metricType}-${item.id}`}
-                      className="flex items-center justify-between gap-3 px-4 py-3"
+                      className="flex items-center justify-between gap-3 rounded-xl px-2.5 py-2 transition-colors hover:bg-muted/45"
                     >
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <div className="flex flex-wrap items-baseline gap-2">

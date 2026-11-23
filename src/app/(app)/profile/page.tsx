@@ -35,17 +35,17 @@ async function ProfileContent() {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
       <div className="flex flex-col gap-6 lg:col-span-5">
-        <Card className="overflow-hidden border-border/80">
+        <Card>
           <CardHeader>
             <CardTitle>Tracking &amp; Reminders</CardTitle>
             <CardDescription>
               Customize metrics, daily check-in schedules, and notifications.
             </CardDescription>
           </CardHeader>
-          <CardContent className="divide-y divide-border/70 border-t border-border/70 p-0">
+          <CardContent className="flex flex-col gap-2">
             <Link
               href="/profile/tracking"
-              className="flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/50"
+              className="flex items-center justify-between gap-3 rounded-xl bg-muted/45 px-3.5 py-3 transition-colors hover:bg-muted/80"
             >
               <div className="flex items-center gap-3">
                 <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -65,7 +65,7 @@ async function ProfileContent() {
 
             <Link
               href="/profile/reminders"
-              className="flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/50"
+              className="flex items-center justify-between gap-3 rounded-xl bg-muted/45 px-3.5 py-3 transition-colors hover:bg-muted/80"
             >
               <div className="flex items-center gap-3">
                 <span className="flex size-9 items-center justify-center rounded-xl bg-secondary text-secondary-foreground">
@@ -85,7 +85,7 @@ async function ProfileContent() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/80">
+        <Card>
           <CardHeader>
             <CardTitle>Session</CardTitle>
             <CardDescription>

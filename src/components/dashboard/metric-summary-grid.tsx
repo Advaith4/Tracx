@@ -136,7 +136,7 @@ export function MetricSummaryGrid({ metrics }: MetricSummaryGridProps) {
                       </span>
                     </div>
 
-                    <div className="flex flex-col gap-0.5 border-t border-border/60 pt-2 text-xs text-muted-foreground">
+                    <div className="flex flex-col gap-0.5 pt-1 text-xs text-muted-foreground">
                       <span className="truncate font-medium text-foreground/85">
                         {metric.context}
                       </span>

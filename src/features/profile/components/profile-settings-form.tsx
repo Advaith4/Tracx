@@ -151,7 +151,9 @@ export function ProfileSettingsForm({
               }}
             >
               <SelectTrigger id="profile-timezone" className="h-11 w-full">
-                <SelectValue placeholder="Select timezone" />
+                <SelectValue placeholder="Select timezone">
+                  {(value: string | null) => value || "Select timezone"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {timezoneOptions.map((tz) => (
@@ -172,7 +174,11 @@ export function ProfileSettingsForm({
               }}
             >
               <SelectTrigger id="profile-locale" className="h-11 w-full">
-                <SelectValue placeholder="Select language" />
+                <SelectValue placeholder="Select language">
+                  {(value: string | null) =>
+                    value === "en" ? "English" : value || "Select language"
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="en">English</SelectItem>

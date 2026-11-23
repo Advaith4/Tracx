@@ -58,11 +58,13 @@ async function AuthenticatedLogContent({
       : firstEnabledMetric;
 
   const timezone = profile?.timezone ?? "UTC";
+  const initialNowIso = new Date().toISOString();
 
   return (
     <LogWorkspace
       userId={user.id}
       timezone={timezone}
+      initialNowIso={initialNowIso}
       autoFocusVoice={resolvedParams.mode === "voice"}
       initialMetric={initialMetric}
       contextHint={resolvedParams.context ?? null}

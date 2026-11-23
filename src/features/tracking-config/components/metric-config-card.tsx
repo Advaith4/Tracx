@@ -200,7 +200,9 @@ export function MetricConfigCard({
                 }}
               >
                 <SelectTrigger id={`unit-${config.id}`} className="h-11 w-full">
-                  <SelectValue placeholder="Select unit" />
+                  <SelectValue placeholder="Select unit">
+                    {(value: string | null) => value || "Select unit"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {supportedUnits.map((supportedUnit) => (

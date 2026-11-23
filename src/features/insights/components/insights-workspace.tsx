@@ -234,7 +234,7 @@ export function InsightsWorkspace({
   return (
     <div className="flex flex-col gap-5">
       {/* Segmented date range & section switcher */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-card p-3.5 shadow-2xs">
+      <div className="flex flex-col gap-3 rounded-2xl bg-card p-3.5 shadow-2xs ring-1 ring-border/70">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
             {(
@@ -299,7 +299,7 @@ export function InsightsWorkspace({
         <div
           role="tablist"
           aria-label="Insights sections"
-          className="grid grid-cols-2 gap-1 rounded-xl border border-border/70 bg-muted/50 p-1 sm:grid-cols-4"
+          className="grid grid-cols-2 gap-1 rounded-xl bg-muted/60 p-1 sm:grid-cols-4"
         >
           {(
             [
@@ -584,7 +584,19 @@ export function InsightsWorkspace({
                   }}
                 >
                   <SelectTrigger className="h-11 w-full">
-                    <SelectValue placeholder="All metrics" />
+                    <SelectValue placeholder="All metrics">
+                      {(value: string | null) =>
+                        value === "glucose"
+                          ? "Blood Glucose"
+                          : value === "blood_pressure"
+                            ? "Blood Pressure"
+                            : value === "weight"
+                              ? "Weight"
+                              : value === "custom"
+                                ? "Custom"
+                                : "All metrics"
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All metrics</SelectItem>
@@ -604,11 +616,11 @@ export function InsightsWorkspace({
                 />
               ) : (
                 <Card size="sm">
-                  <CardContent className="divide-y divide-border p-0">
+                  <CardContent className="flex flex-col gap-1">
                     {data.history.map((item) => (
                       <div
                         key={`${item.metricType}-${item.id}`}
-                        className="flex items-center justify-between gap-3 px-4 py-3"
+                        className="flex items-center justify-between gap-3 rounded-xl px-2.5 py-2 transition-colors hover:bg-muted/45"
                       >
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                           <div className="flex flex-wrap items-center gap-2">

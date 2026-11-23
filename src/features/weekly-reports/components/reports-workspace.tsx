@@ -23,10 +23,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { formatReportTimestamp } from "@/features/measurements/components/datetime-utils";
 import type { ParsedWeeklyReport } from "@/features/weekly-reports/service";
 
 interface ReportsWorkspaceProps {
   userId: string;
+  timezone: string;
   defaultPeriodStart: string;
   defaultPeriodEnd: string;
   initialReports: ParsedWeeklyReport[];
@@ -34,6 +36,7 @@ interface ReportsWorkspaceProps {
 
 export function ReportsWorkspace({
   userId,
+  timezone,
   defaultPeriodStart,
   defaultPeriodEnd,
   initialReports,
@@ -223,11 +226,11 @@ export function ReportsWorkspace({
         </Card>
 
         {reports.length > 0 ? (
-          <Card className="overflow-hidden border-border/80">
-            <CardHeader className="py-3">
+          <Card>
+            <CardHeader>
               <CardTitle className="text-sm">Saved Reports ({reports.length})</CardTitle>
             </CardHeader>
-            <CardContent className="divide-y divide-border/70 border-t border-border/70 p-0">
+            <CardContent className="flex flex-col gap-1.5">
               {reports.map((rep) => {
                 const selected = activeReport?.id === rep.id;
                 return (
@@ -235,10 +238,10 @@ export function ReportsWorkspace({
                     key={rep.id}
                     type="button"
                     onClick={() => setSelectedId(rep.id)}
-                    className={`flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors ${
+                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-left transition-colors ${
                       selected
-                        ? "bg-primary/8 text-primary"
-                        : "text-foreground hover:bg-muted/50"
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted/35 text-foreground hover:bg-muted/65"
                     }`}
                   >
                     <div className="flex min-w-0 flex-col gap-0.5">
@@ -247,7 +250,7 @@ export function ReportsWorkspace({
                       </span>
                       <span className="truncate text-[11px] text-muted-foreground">
                         {rep.statistics.overview.totalRecorded} recorded ·{" "}
-                        {new Date(rep.generatedAt).toLocaleDateString()}
+                        {formatReportTimestamp(rep.generatedAt, timezone, false)}
                       </span>
                     </div>
                   </button>
@@ -266,8 +269,8 @@ export function ReportsWorkspace({
             description="Generate your first weekly summary on the left to review your records and download a PDF."
           />
         ) : activeReport ? (
-          <Card className="border-border/80">
-            <CardHeader className="border-b border-border/70 pb-4">
+          <Card>
+            <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <CardTitle className="tabular-nums">
@@ -276,7 +279,7 @@ export function ReportsWorkspace({
                   </CardTitle>
                   <CardDescription>
                     Generated{" "}
-                    {new Date(activeReport.generatedAt).toLocaleString()}
+                    {formatReportTimestamp(activeReport.generatedAt, timezone, true)}
                   </CardDescription>
                 </div>
 
@@ -326,7 +329,7 @@ export function ReportsWorkspace({
               </p>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-xl border border-border/70 bg-muted/35 p-3">
+                <div className="rounded-xl bg-muted/45 p-3">
                   <span className="block text-xs text-muted-foreground">
                     Scheduled
                   </span>
@@ -334,7 +337,7 @@ export function ReportsWorkspace({
                     {activeReport.statistics.overview.totalScheduled}
                   </span>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-muted/35 p-3">
+                <div className="rounded-xl bg-muted/45 p-3">
                   <span className="block text-xs text-muted-foreground">
                     Recorded
                   </span>
@@ -342,7 +345,7 @@ export function ReportsWorkspace({
                     {activeReport.statistics.overview.totalRecorded}
                   </span>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-muted/35 p-3">
+                <div className="rounded-xl bg-muted/45 p-3">
                   <span className="block text-xs text-muted-foreground">
                     Skipped
                   </span>
@@ -350,7 +353,7 @@ export function ReportsWorkspace({
                     {activeReport.statistics.overview.totalSkipped}
                   </span>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-muted/35 p-3">
+                <div className="rounded-xl bg-muted/45 p-3">
                   <span className="block text-xs text-muted-foreground">
                     Missing
                   </span>

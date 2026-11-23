@@ -364,7 +364,17 @@ export function RemindersManager({
                   }}
                 >
                   <SelectTrigger id="rem-metric" className="h-11 w-full">
-                    <SelectValue />
+                    <SelectValue>
+                      {(value: string | null) =>
+                        value === "glucose"
+                          ? "Blood Glucose"
+                          : value === "blood_pressure"
+                            ? "Blood Pressure"
+                            : value === "weight"
+                              ? "Weight"
+                              : "Custom Metric"
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="glucose">Blood Glucose</SelectItem>
@@ -408,7 +418,15 @@ export function RemindersManager({
                   }}
                 >
                   <SelectTrigger id="rem-channel" className="h-11 w-full">
-                    <SelectValue />
+                    <SelectValue>
+                      {(value: string | null) =>
+                        value === "push"
+                          ? "Push notification"
+                          : value === "email"
+                            ? "Email"
+                            : "In-app"
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="in_app">In-app</SelectItem>

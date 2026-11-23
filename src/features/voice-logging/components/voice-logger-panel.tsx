@@ -524,7 +524,9 @@ export function VoiceLoggerPanel({
                         }}
                       >
                         <SelectTrigger className="h-10 w-full">
-                          <SelectValue />
+                          <SelectValue>
+                            {(value: string | null) => value || "mg/dL"}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="mg/dL">mg/dL</SelectItem>
@@ -546,7 +548,21 @@ export function VoiceLoggerPanel({
                         }}
                       >
                         <SelectTrigger className="h-10 w-full">
-                          <SelectValue />
+                          <SelectValue>
+                            {(value: string | null) =>
+                              value === "fasting"
+                                ? "Fasting"
+                                : value === "breakfast"
+                                  ? "Breakfast"
+                                  : value === "lunch"
+                                    ? "Lunch"
+                                    : value === "dinner"
+                                      ? "Dinner"
+                                      : value === "snack"
+                                        ? "Snack"
+                                        : "General"
+                            }
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="fasting">Fasting</SelectItem>
@@ -618,7 +634,9 @@ export function VoiceLoggerPanel({
                         }}
                       >
                         <SelectTrigger className="h-10 w-full">
-                          <SelectValue />
+                          <SelectValue>
+                            {(value: string | null) => value || "kg"}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="kg">kg</SelectItem>

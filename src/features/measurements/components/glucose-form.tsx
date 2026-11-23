@@ -119,6 +119,8 @@ function inferPresetFromRecordOrQuery(
 
 interface GlucoseFormProps {
   userId?: string;
+  timezone?: string;
+  initialNowIso?: string;
   defaultUnit?: GlucoseUnit;
   contextHint?: string | null;
   initialRecord?: Tables<"glucose_records">;
@@ -127,6 +129,8 @@ interface GlucoseFormProps {
 
 export function GlucoseForm({
   userId,
+  timezone,
+  initialNowIso,
   defaultUnit = "mg/dL",
   contextHint,
   initialRecord,
@@ -146,10 +150,10 @@ export function GlucoseForm({
     initialRecord?.elapsed_minutes ? String(initialRecord.elapsed_minutes) : "60"
   );
   const [dateStr, setDateStr] = useState(() =>
-    toLocalDateInputValue(initialRecord?.measured_at)
+    toLocalDateInputValue(initialRecord?.measured_at ?? initialNowIso, timezone)
   );
   const [timeStr, setTimeStr] = useState(() =>
-    toLocalTimeInputValue(initialRecord?.measured_at)
+    toLocalTimeInputValue(initialRecord?.measured_at ?? initialNowIso, timezone)
   );
   const [notes, setNotes] = useState(initialRecord?.notes ?? "");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -294,7 +298,9 @@ export function GlucoseForm({
               }}
             >
               <SelectTrigger id="glucose-unit" className="h-11 w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(value: string | null) => value || "mg/dL"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="mg/dL">mg/dL</SelectItem>
@@ -314,7 +320,12 @@ export function GlucoseForm({
               }}
             >
               <SelectTrigger id="glucose-context" className="h-11 w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(value: string | null) =>
+                    CONTEXT_PRESETS.find((p) => p.key === value)?.label ??
+                    "Fasting"
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {CONTEXT_PRESETS.map((preset) => (

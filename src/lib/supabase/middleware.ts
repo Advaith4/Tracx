@@ -6,6 +6,7 @@ import { getSupabasePublicEnv } from "./env";
 const PROTECTED_PREFIXES = [
   "/dashboard",
   "/log",
+  "/logbook",
   "/calendar",
   "/insights",
   "/reports",

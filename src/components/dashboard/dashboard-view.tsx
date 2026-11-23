@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mic, Plus, SlidersHorizontal } from "lucide-react";
+import { Mic, Plus, SlidersHorizontal, Table2 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DailyNoteCard } from "./daily-note-card";
@@ -69,6 +69,16 @@ export function DashboardView({
           >
             <Plus className="size-4" aria-hidden="true" />
             Add Entry
+          </Link>
+          <Link
+            href="/logbook"
+            className={cn(
+              buttonVariants({ size: "default", variant: "outline" }),
+              "gap-1.5 rounded-full px-4"
+            )}
+          >
+            <Table2 className="size-4 text-primary" aria-hidden="true" />
+            Excel Sheet
           </Link>
           <Link
             href="/profile/tracking"

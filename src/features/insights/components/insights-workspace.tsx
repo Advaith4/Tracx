@@ -22,6 +22,7 @@ import {
   Sparkles,
   Stethoscope,
   StickyNote,
+  Table2,
   Trash2,
 } from "lucide-react";
 import { BloodPressureChart } from "@/components/charts/blood-pressure-chart";
@@ -59,6 +60,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { InsightsPayload } from "@/features/insights/service";
+import { LogbookWorkspace } from "@/features/logbook/components/logbook-workspace";
 import { BloodPressureForm } from "@/features/measurements/components/blood-pressure-form";
 import { CustomMetricForm } from "@/features/measurements/components/custom-metric-form";
 import { GlucoseForm } from "@/features/measurements/components/glucose-form";
@@ -74,6 +76,7 @@ import type { MetricType } from "@/types/database";
 
 type InsightTab =
   | "overview"
+  | "sheet"
   | "glucose"
   | "blood_pressure"
   | "weight"
@@ -262,6 +265,7 @@ export function InsightsWorkspace({
             {(
               [
                 { id: "overview", label: "Overview", icon: Sparkles },
+                { id: "sheet", label: "Excel Sheet", icon: Table2 },
                 { id: "glucose", label: "Glucose", icon: Droplets },
                 {
                   id: "blood_pressure",
@@ -296,41 +300,50 @@ export function InsightsWorkspace({
             })}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 lg:justify-end">
-            <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1">
-              {(
-                [
-                  { value: "7d", label: "7D" },
-                  { value: "14d", label: "14D" },
-                  { value: "30d", label: "30D" },
-                  { value: "custom", label: "Custom" },
-                ] as const
-              ).map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setPreset(opt.value)}
-                  className={cn(
-                    "rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all",
-                    preset === opt.value
-                      ? "bg-card text-foreground shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+          {activeTab === "sheet" ? (
+            <Link
+              href="/logbook"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Open Full-Screen Logbook &rarr;
+            </Link>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-2 lg:justify-end">
+              <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1">
+                {(
+                  [
+                    { value: "7d", label: "7D" },
+                    { value: "14d", label: "14D" },
+                    { value: "30d", label: "30D" },
+                    { value: "custom", label: "Custom" },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setPreset(opt.value)}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all",
+                      preset === opt.value
+                        ? "bg-card text-foreground shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
 
-            {data ? (
-              <span className="rounded-full bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground tabular-nums">
-                {data.startDate} → {data.endDate}
-              </span>
-            ) : null}
-          </div>
+              {data ? (
+                <span className="rounded-full bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground tabular-nums">
+                  {data.startDate} → {data.endDate}
+                </span>
+              ) : null}
+            </div>
+          )}
         </div>
 
-        {preset === "custom" ? (
+        {activeTab !== "sheet" && preset === "custom" ? (
           <Card size="sm">
             <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1">
@@ -1215,6 +1228,11 @@ export function InsightsWorkspace({
                 </>
               )}
             </div>
+          ) : null}
+
+          {/* EXCEL SHEET TAB */}
+          {activeTab === "sheet" ? (
+            <LogbookWorkspace userId={userId} />
           ) : null}
 
           {/* HISTORY TAB */}

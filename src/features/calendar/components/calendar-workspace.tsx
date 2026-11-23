@@ -19,6 +19,7 @@ import {
   Plus,
   Scale,
   StickyNote,
+  Table2,
   Trash2,
 } from "lucide-react";
 import { StatusBadge } from "@/components/layout/status-badge";
@@ -455,6 +456,13 @@ export function CalendarWorkspace({
           >
             Test Alert
           </Button>
+          <Link
+            href="/logbook"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            <Table2 className="size-3.5 text-primary" aria-hidden="true" />
+            Excel Sheet
+          </Link>
           <Link
             href="/profile/reminders"
             className={buttonVariants({ variant: "ghost", size: "sm" })}

@@ -260,7 +260,7 @@ export function InsightsWorkspace({
           <div
             role="tablist"
             aria-label="Insights sections"
-            className="flex flex-wrap gap-1 rounded-xl bg-muted/60 p-1"
+            className="flex flex-nowrap gap-1 overflow-x-auto rounded-xl bg-muted/60 p-1 sm:flex-wrap"
           >
             {(
               [
@@ -287,7 +287,7 @@ export function InsightsWorkspace({
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all sm:flex-initial",
+                    "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition-all",
                     active
                       ? "bg-card text-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground"

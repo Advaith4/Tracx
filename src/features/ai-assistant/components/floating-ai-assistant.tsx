@@ -28,9 +28,9 @@ export function FloatingAiAssistant() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Ask AI Assistant"
-        className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 h-11 gap-2 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-colors hover:bg-primary/90 md:right-6 md:bottom-6"
+        className="fixed right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 h-10 gap-1.5 rounded-full bg-primary px-3.5 text-xs font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-colors hover:bg-primary/90 sm:h-11 sm:gap-2 sm:px-4 sm:text-sm md:right-6 md:bottom-6"
       >
-        <Sparkles className="size-4 shrink-0" aria-hidden="true" />
+        <Sparkles className="size-3.5 shrink-0 sm:size-4" aria-hidden="true" />
         <span>Ask AI</span>
       </Button>
 

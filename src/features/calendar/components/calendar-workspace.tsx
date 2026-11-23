@@ -473,28 +473,31 @@ export function CalendarWorkspace({
       </div>
 
       {/* Month KPIs strip */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-border/60 bg-card px-3.5 py-2.5">
-          <span className="text-[11px] font-medium text-muted-foreground">
-            Active Days ({formatMonthTitle(data.month).split(" ")[0]})
+      <div className="grid grid-cols-3 divide-x divide-border/60 rounded-2xl border border-border/70 bg-card text-center shadow-2xs">
+        <div className="px-2 py-2.5 sm:px-4 sm:py-3">
+          <span className="block truncate text-[10px] font-medium text-muted-foreground sm:text-[11px]">
+            Active Days
           </span>
-          <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
-            {monthSummary.activeDays} / {data.daysInMonth}
+          <p className="mt-0.5 text-base font-semibold tabular-nums text-foreground sm:text-lg">
+            {monthSummary.activeDays}
+            <span className="text-xs font-normal text-muted-foreground">
+              /{data.daysInMonth}
+            </span>
           </p>
         </div>
-        <div className="rounded-xl border border-border/60 bg-card px-3.5 py-2.5">
-          <span className="text-[11px] font-medium text-muted-foreground">
-            Readings This Month
+        <div className="px-2 py-2.5 sm:px-4 sm:py-3">
+          <span className="block truncate text-[10px] font-medium text-muted-foreground sm:text-[11px]">
+            Readings
           </span>
-          <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
+          <p className="mt-0.5 text-base font-semibold tabular-nums text-foreground sm:text-lg">
             {monthSummary.totalReadings}
           </p>
         </div>
-        <div className="rounded-xl border border-border/60 bg-card px-3.5 py-2.5">
-          <span className="text-[11px] font-medium text-muted-foreground">
-            Date-Pinned Reminders
+        <div className="px-2 py-2.5 sm:px-4 sm:py-3">
+          <span className="block truncate text-[10px] font-medium text-muted-foreground sm:text-[11px]">
+            Date Reminders
           </span>
-          <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
+          <p className="mt-0.5 text-base font-semibold tabular-nums text-foreground sm:text-lg">
             {monthSummary.pinnedReminders}
           </p>
         </div>
@@ -575,24 +578,25 @@ export function CalendarWorkspace({
             </div>
           </CardHeader>
 
-          <CardContent className="flex flex-col gap-2">
+          <CardContent className="flex flex-col gap-1.5 px-2.5 sm:gap-2 sm:px-6">
             {/* Weekday headers */}
-            <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] font-medium text-muted-foreground">
+            <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground sm:gap-1.5">
               {WEEKDAY_HEADERS.map((wd) => (
                 <div key={wd} className="py-1">
-                  {wd}
+                  <span className="sm:hidden">{wd.slice(0, 1)}</span>
+                  <span className="hidden sm:inline">{wd}</span>
                 </div>
               ))}
             </div>
 
             {/* Calendar cells */}
-            <div className="grid grid-cols-7 gap-1.5">
+            <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
               {calendarCells.map((day, idx) => {
                 if (!day) {
                   return (
                     <div
                       key={`empty-${idx}`}
-                      className="min-h-[68px] rounded-xl bg-muted/20 sm:min-h-[78px]"
+                      className="min-h-[52px] rounded-xl bg-muted/20 sm:min-h-[76px]"
                     />
                   );
                 }
@@ -600,9 +604,9 @@ export function CalendarWorkspace({
                 const dayNum = Number(day.date.slice(8));
                 const isSelected = day.date === activeDay?.date;
                 const enabledReminders = day.reminders.filter((r) => r.enabled);
-                const hasDatePinned = enabledReminders.some(
+                const pinnedCount = enabledReminders.filter(
                   (r) => r.isDateSpecific
-                );
+                ).length;
                 const hasSentReminder = day.reminders.some(
                   (r) => r.notificationStatus === "sent"
                 );
@@ -615,7 +619,7 @@ export function CalendarWorkspace({
                     aria-pressed={isSelected}
                     aria-label={`${formatFullDateTitle(day.date)}, ${day.totalLogs} logged measurements, ${enabledReminders.length} reminders`}
                     className={cn(
-                      "group relative flex min-h-[68px] flex-col justify-between rounded-xl border p-1.5 text-left transition-all sm:min-h-[78px] sm:p-2",
+                      "group relative flex min-h-[52px] flex-col items-center justify-between overflow-hidden rounded-xl border p-1 transition-all sm:min-h-[76px] sm:items-stretch sm:p-2",
                       isSelected
                         ? "border-primary bg-primary/8 ring-2 ring-primary/35"
                         : day.isToday
@@ -625,10 +629,10 @@ export function CalendarWorkspace({
                             : "border-border/45 bg-muted/20 hover:border-border hover:bg-muted/35"
                     )}
                   >
-                    <div className="flex items-start justify-between gap-1">
+                    <div className="flex w-full items-center justify-center sm:justify-between">
                       <span
                         className={cn(
-                          "inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
+                          "inline-flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
                           day.isToday
                             ? "bg-primary text-primary-foreground"
                             : isSelected
@@ -639,63 +643,75 @@ export function CalendarWorkspace({
                         {dayNum}
                       </span>
 
-                      {enabledReminders.length > 0 ? (
-                        <span
-                          title={`${enabledReminders.length} active reminder(s)`}
-                          className={cn(
-                            "inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[10px] font-semibold",
-                            hasDatePinned
-                              ? "bg-primary/15 text-primary"
-                              : hasSentReminder
-                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                                : "text-muted-foreground"
-                          )}
-                        >
-                          <Bell className="size-2.5" aria-hidden="true" />
-                          {hasDatePinned || enabledReminders.length > 1
-                            ? enabledReminders.length
-                            : null}
-                        </span>
+                      {pinnedCount > 0 || hasSentReminder ? (
+                        <>
+                          {/* Mobile: crisp corner dot without overflowing */}
+                          <span
+                            className={cn(
+                              "absolute top-1.5 right-1.5 size-1.5 rounded-full sm:hidden",
+                              pinnedCount > 0 ? "bg-primary" : "bg-emerald-500"
+                            )}
+                          />
+                          {/* Desktop: compact bell badge */}
+                          <span
+                            title={`${pinnedCount > 0 ? `${pinnedCount} date-specific reminder(s)` : "Reminder delivered"}`}
+                            className={cn(
+                              "hidden items-center gap-0.5 rounded-full px-1 py-0.5 text-[10px] font-semibold sm:inline-flex",
+                              pinnedCount > 0
+                                ? "bg-primary/15 text-primary"
+                                : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                            )}
+                          >
+                            <Bell className="size-2.5" aria-hidden="true" />
+                            {pinnedCount > 0 ? pinnedCount : null}
+                          </span>
+                        </>
                       ) : null}
                     </div>
 
                     {/* Metric dots + count + note dot */}
-                    <div className="mt-1 flex items-center justify-between gap-1">
-                      <div className="flex flex-wrap items-center gap-1">
+                    <div className="flex w-full items-center justify-center gap-1 sm:justify-between">
+                      <div className="flex items-center justify-center gap-0.5 sm:gap-1">
                         {day.glucose.count > 0 ? (
                           <span
-                            className="size-1.5 rounded-full bg-emerald-500"
+                            className="size-1.5 shrink-0 rounded-full bg-emerald-500"
                             title={`${day.glucose.count} glucose`}
                           />
                         ) : null}
                         {day.bloodPressure.count > 0 ? (
                           <span
-                            className="size-1.5 rounded-full bg-rose-500"
+                            className="size-1.5 shrink-0 rounded-full bg-rose-500"
                             title={`${day.bloodPressure.count} blood pressure`}
                           />
                         ) : null}
                         {day.weight.count > 0 ? (
                           <span
-                            className="size-1.5 rounded-full bg-amber-500"
+                            className="size-1.5 shrink-0 rounded-full bg-amber-500"
                             title={`${day.weight.count} weight`}
                           />
                         ) : null}
                         {day.customMetrics.length > 0 ? (
                           <span
-                            className="size-1.5 rounded-full bg-violet-500"
+                            className="size-1.5 shrink-0 rounded-full bg-violet-500"
                             title="Custom metric"
                           />
                         ) : null}
                         {day.dailyNote ? (
+                          <span
+                            className="size-1.5 shrink-0 rounded-full bg-sky-500 sm:hidden"
+                            title="Has daily note"
+                          />
+                        ) : null}
+                        {day.dailyNote ? (
                           <StickyNote
-                            className="size-2.5 text-sky-600 dark:text-sky-400"
+                            className="hidden size-2.5 text-sky-600 dark:text-sky-400 sm:inline"
                             aria-hidden="true"
                           />
                         ) : null}
                       </div>
 
                       {day.totalLogs > 0 ? (
-                        <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">
+                        <span className="hidden text-[10px] font-semibold tabular-nums text-muted-foreground sm:inline">
                           {day.totalLogs}
                         </span>
                       ) : null}

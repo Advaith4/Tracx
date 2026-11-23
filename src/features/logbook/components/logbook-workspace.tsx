@@ -354,7 +354,8 @@ export function LogbookWorkspace({
               onClick={handleExportCsv}
             >
               <Download className="size-3.5" aria-hidden="true" />
-              Export Excel (.csv)
+              <span className="sm:hidden">CSV</span>
+              <span className="hidden sm:inline">Export Excel (.csv)</span>
             </Button>
 
             <Link
@@ -510,7 +511,7 @@ export function LogbookWorkspace({
                 <table className="w-full min-w-[980px] border-collapse text-xs">
                   <thead className="sticky top-0 z-20 bg-muted/95 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-sm">
                     <tr className="border-b border-border">
-                      <th className="sticky left-0 z-30 min-w-[118px] border-r border-border bg-muted/95 px-3 py-2.5 text-left">
+                      <th className="sticky left-0 z-30 min-w-[82px] border-r border-border bg-muted px-2.5 py-2.5 text-left sm:min-w-[118px] sm:px-3">
                         Date
                       </th>
                       {GLUCOSE_SHEET_COLUMNS.map((col) => (
@@ -555,15 +556,10 @@ export function LogbookWorkspace({
                           rowIdx % 2 === 0 ? "bg-card" : "bg-muted/20"
                         )}
                       >
-                        <td
-                          className={cn(
-                            "sticky left-0 z-10 border-r border-border px-3 py-2 font-medium",
-                            rowIdx % 2 === 0 ? "bg-card" : "bg-muted/35"
-                          )}
-                        >
+                        <td className="sticky left-0 z-10 border-r border-border bg-card px-2.5 py-2 font-medium sm:px-3">
                           <Link
                             href={`/calendar?date=${row.date}`}
-                            className="flex items-center justify-between gap-1.5 text-foreground hover:text-primary"
+                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between sm:gap-1.5 text-foreground hover:text-primary"
                             title="Open day summary in Calendar"
                           >
                             <span className="tabular-nums font-semibold">
@@ -651,8 +647,8 @@ export function LogbookWorkspace({
                   {/* Summary / Column Average Footer Row */}
                   <tfoot className="sticky bottom-0 z-20 border-t-2 border-border bg-muted/95 font-semibold text-foreground backdrop-blur-sm">
                     <tr>
-                      <td className="sticky left-0 z-30 border-r border-border bg-muted/95 px-3 py-2.5 text-left text-[11px] uppercase tracking-wide">
-                        Average / Summary
+                      <td className="sticky left-0 z-30 border-r border-border bg-muted px-2.5 py-2.5 text-left text-[10px] uppercase tracking-wide sm:px-3 sm:text-[11px]">
+                        Avg / Summary
                       </td>
                       {GLUCOSE_SHEET_COLUMNS.map((col) => {
                         const avg =

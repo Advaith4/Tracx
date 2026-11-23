@@ -16,6 +16,10 @@ import {
   type GlucoseContextFilter,
 } from "@/lib/calculations/analytics";
 import {
+  buildInsightsSynthesis,
+  type InsightsSynthesis,
+} from "@/lib/calculations/insights-synthesis";
+import {
   formatGlucoseContextLabel,
   formatLocalDateTimeLabel,
   safeTimezone,
@@ -40,6 +44,7 @@ export interface InsightsPayload {
   weight: ReturnType<typeof buildWeightAnalytics>;
   customMetrics: ReturnType<typeof buildCustomMetricsAnalytics>;
   completion: ReturnType<typeof computeRangeCompletionSummary>;
+  synthesis: InsightsSynthesis;
   history: UnifiedMeasurement[];
   configs: Tables<"tracking_configs">[];
 }
@@ -59,7 +64,7 @@ export async function getInsightsData(
   const [{ data: profile }, configs] = await Promise.all([
     supabase
       .from("profiles")
-      .select("timezone")
+      .select("timezone, pregnancy_week, provider_name")
       .eq("id", userId)
       .maybeSingle(),
     ensureAndListTrackingConfigs(supabase, userId),
@@ -75,8 +80,8 @@ export async function getInsightsData(
     timezone,
   });
 
-  const [glucoseRes, bpRes, weightRes, customRes, skipsRes] = await Promise.all(
-    [
+  const [glucoseRes, bpRes, weightRes, customRes, skipsRes, notesRes] =
+    await Promise.all([
       supabase
         .from("glucose_records")
         .select("*")
@@ -111,8 +116,14 @@ export async function getInsightsData(
         .eq("user_id", userId)
         .gte("scheduled_date", startDate)
         .lte("scheduled_date", endDate),
-    ]
-  );
+      supabase
+        .from("daily_notes")
+        .select("*")
+        .eq("user_id", userId)
+        .gte("note_date", startDate)
+        .lte("note_date", endDate)
+        .order("note_date", { ascending: false }),
+    ]);
 
   const glucoseRecords = (glucoseRes.data ?? []).filter((r) =>
     isIsoInLocalDateRange(r.measured_at, startDate, endDate, timezone)
@@ -244,6 +255,22 @@ export async function getInsightsData(
     startDate,
     endDate,
   });
+  const synthesis = buildInsightsSynthesis({
+    startDate,
+    endDate,
+    timezone,
+    glucoseUnit,
+    weightUnit,
+    configs,
+    glucoseRecords,
+    bpRecords,
+    weightRecords,
+    customRecords,
+    customMetrics,
+    dailyNotes: notesRes.data ?? [],
+    pregnancyWeek: profile?.pregnancy_week ?? null,
+    providerName: profile?.provider_name ?? null,
+  });
 
   return {
     timezone,
@@ -256,6 +283,7 @@ export async function getInsightsData(
     weight,
     customMetrics,
     completion,
+    synthesis,
     history: filteredHistory,
     configs,
   };

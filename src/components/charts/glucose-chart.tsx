@@ -5,6 +5,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -21,6 +22,8 @@ interface GlucoseChartProps {
   points: GlucosePoint[];
   unit: string;
   filter: GlucoseContextFilter;
+  fastingMax?: number | null;
+  postMealMax?: number | null;
 }
 
 interface ChartRow {
@@ -56,7 +59,13 @@ function GlucoseTooltip({
   );
 }
 
-export function GlucoseChart({ points, unit, filter }: GlucoseChartProps) {
+export function GlucoseChart({
+  points,
+  unit,
+  filter,
+  fastingMax,
+  postMealMax,
+}: GlucoseChartProps) {
   if (points.length === 0) {
     return (
       <EmptyState
@@ -112,6 +121,34 @@ export function GlucoseChart({ points, unit, filter }: GlucoseChartProps) {
             width={68}
           />
           <Tooltip content={<GlucoseTooltip />} />
+          {fastingMax && (filter === "all" || filter === "fasting") ? (
+            <ReferenceLine
+              y={fastingMax}
+              stroke="var(--chart-1)"
+              strokeDasharray="4 4"
+              label={{
+                value: `Fasting ref ${fastingMax}`,
+                position: "insideTopRight",
+                fontSize: 10,
+                fill: "var(--muted-foreground)",
+              }}
+            />
+          ) : null}
+          {postMealMax &&
+          filter !== "fasting" &&
+          filter !== "before_meals" ? (
+            <ReferenceLine
+              y={postMealMax}
+              stroke="var(--chart-3)"
+              strokeDasharray="4 4"
+              label={{
+                value: `Post-meal ref ${postMealMax}`,
+                position: "insideTopRight",
+                fontSize: 10,
+                fill: "var(--muted-foreground)",
+              }}
+            />
+          ) : null}
           {splitByContext ? (
             <>
               <Legend wrapperStyle={{ fontSize: "12px" }} />

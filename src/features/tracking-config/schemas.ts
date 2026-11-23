@@ -36,6 +36,11 @@ export type TrackingScheduleConfig = z.infer<typeof trackingScheduleSchema>;
 export const providerTargetsSchema = z
   .object({
     note: z.string().trim().max(300, "Target note is too long.").optional(),
+    fastingMax: z.number().positive().max(1000).nullable().optional(),
+    postMealMax: z.number().positive().max(1000).nullable().optional(),
+    systolicMax: z.number().int().positive().max(300).nullable().optional(),
+    diastolicMax: z.number().int().positive().max(200).nullable().optional(),
+    targetMax: z.number().positive().max(1000).nullable().optional(),
   })
   .nullable()
   .optional();

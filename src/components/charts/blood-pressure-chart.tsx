@@ -5,6 +5,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,6 +17,8 @@ import type { BloodPressurePoint } from "@/lib/calculations/analytics";
 
 interface BloodPressureChartProps {
   points: BloodPressurePoint[];
+  systolicMax?: number | null;
+  diastolicMax?: number | null;
 }
 
 function BloodPressureTooltip({
@@ -41,7 +44,11 @@ function BloodPressureTooltip({
   );
 }
 
-export function BloodPressureChart({ points }: BloodPressureChartProps) {
+export function BloodPressureChart({
+  points,
+  systolicMax,
+  diastolicMax,
+}: BloodPressureChartProps) {
   if (points.length === 0) {
     return (
       <EmptyState
@@ -79,6 +86,20 @@ export function BloodPressureChart({ points }: BloodPressureChartProps) {
           />
           <Tooltip content={<BloodPressureTooltip />} />
           <Legend wrapperStyle={{ fontSize: "12px" }} />
+          {systolicMax ? (
+            <ReferenceLine
+              y={systolicMax}
+              stroke="var(--chart-1)"
+              strokeDasharray="4 4"
+            />
+          ) : null}
+          {diastolicMax ? (
+            <ReferenceLine
+              y={diastolicMax}
+              stroke="var(--chart-2)"
+              strokeDasharray="4 4"
+            />
+          ) : null}
           <Line
             type="monotone"
             dataKey="systolic"

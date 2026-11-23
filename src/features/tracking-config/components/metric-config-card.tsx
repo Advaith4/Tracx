@@ -67,6 +67,18 @@ export function MetricConfigCard({
   );
   const [slots, setSlots] = useState<ScheduleSlot[]>(initialSchedule.slots);
   const [targetNote, setTargetNote] = useState(initialTargets?.note ?? "");
+  const [fastingMax, setFastingMax] = useState(
+    initialTargets?.fastingMax ? String(initialTargets.fastingMax) : ""
+  );
+  const [postMealMax, setPostMealMax] = useState(
+    initialTargets?.postMealMax ? String(initialTargets.postMealMax) : ""
+  );
+  const [systolicMax, setSystolicMax] = useState(
+    initialTargets?.systolicMax ? String(initialTargets.systolicMax) : ""
+  );
+  const [diastolicMax, setDiastolicMax] = useState(
+    initialTargets?.diastolicMax ? String(initialTargets.diastolicMax) : ""
+  );
 
   const supportedUnits = SUPPORTED_UNITS_BY_METRIC[config.metric_type];
   const displayName = getMetricDisplayName({
@@ -129,6 +141,34 @@ export function MetricConfigCard({
       new Set(slots.map((s) => s.context.trim()).filter(Boolean))
     );
 
+    const parseOptNum = (raw: string) => {
+      const n = Number(raw.trim());
+      return raw.trim() && Number.isFinite(n) && n > 0 ? n : null;
+    };
+
+    const nextTargets = {
+      ...(targetNote.trim() ? { note: targetNote.trim() } : {}),
+      ...(config.metric_type === "glucose"
+        ? {
+            fastingMax: parseOptNum(fastingMax),
+            postMealMax: parseOptNum(postMealMax),
+          }
+        : {}),
+      ...(config.metric_type === "blood_pressure"
+        ? {
+            systolicMax: parseOptNum(systolicMax),
+            diastolicMax: parseOptNum(diastolicMax),
+          }
+        : {}),
+    };
+
+    const hasTargets =
+      Boolean(nextTargets.note) ||
+      nextTargets.fastingMax != null ||
+      nextTargets.postMealMax != null ||
+      nextTargets.systolicMax != null ||
+      nextTargets.diastolicMax != null;
+
     onSave({
       id: config.id,
       custom_label:
@@ -144,9 +184,7 @@ export function MetricConfigCard({
             : initialSchedule.contexts,
         slots,
       },
-      provider_targets: targetNote.trim()
-        ? { note: targetNote.trim() }
-        : null,
+      provider_targets: hasTargets ? nextTargets : null,
     });
   }
 
@@ -377,10 +415,89 @@ export function MetricConfigCard({
           )}
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           <Label htmlFor={`targets-${config.id}`}>
-            Healthcare provider instructions or targets (optional)
+            Healthcare provider instructions or reference targets (optional)
           </Label>
+          {config.metric_type === "glucose" ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <Label
+                  htmlFor={`fasting-max-${config.id}`}
+                  className="text-xs text-muted-foreground"
+                >
+                  Provider fasting reference ceiling ({unit})
+                </Label>
+                <Input
+                  id={`fasting-max-${config.id}`}
+                  type="number"
+                  step="any"
+                  min={1}
+                  placeholder="Optional (leave blank unless prescribed)"
+                  value={fastingMax}
+                  onChange={(e) => setFastingMax(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label
+                  htmlFor={`postmeal-max-${config.id}`}
+                  className="text-xs text-muted-foreground"
+                >
+                  Provider post-meal reference ceiling ({unit})
+                </Label>
+                <Input
+                  id={`postmeal-max-${config.id}`}
+                  type="number"
+                  step="any"
+                  min={1}
+                  placeholder="Optional (leave blank unless prescribed)"
+                  value={postMealMax}
+                  onChange={(e) => setPostMealMax(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+            </div>
+          ) : config.metric_type === "blood_pressure" ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <Label
+                  htmlFor={`sys-max-${config.id}`}
+                  className="text-xs text-muted-foreground"
+                >
+                  Provider systolic reference ceiling (mmHg)
+                </Label>
+                <Input
+                  id={`sys-max-${config.id}`}
+                  type="number"
+                  min={40}
+                  max={300}
+                  placeholder="Optional"
+                  value={systolicMax}
+                  onChange={(e) => setSystolicMax(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label
+                  htmlFor={`dia-max-${config.id}`}
+                  className="text-xs text-muted-foreground"
+                >
+                  Provider diastolic reference ceiling (mmHg)
+                </Label>
+                <Input
+                  id={`dia-max-${config.id}`}
+                  type="number"
+                  min={20}
+                  max={200}
+                  placeholder="Optional"
+                  value={diastolicMax}
+                  onChange={(e) => setDiastolicMax(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+            </div>
+          ) : null}
           <Textarea
             id={`targets-${config.id}`}
             value={targetNote}

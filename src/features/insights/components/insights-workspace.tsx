@@ -7,7 +7,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Activity,
+  ArrowRight,
+  CalendarCheck2,
   Droplets,
+  FileText,
+  Flame,
   History,
   Mic,
   Pencil,
@@ -15,11 +19,15 @@ import {
   Scale,
   Search,
   SlidersHorizontal,
+  Sparkles,
+  Stethoscope,
+  StickyNote,
   Trash2,
 } from "lucide-react";
 import { BloodPressureChart } from "@/components/charts/blood-pressure-chart";
 import { CustomMetricChart } from "@/components/charts/custom-metric-chart";
 import { GlucoseChart } from "@/components/charts/glucose-chart";
+import { GlucoseMealBarChart } from "@/components/charts/glucose-meal-bar-chart";
 import { WeightChart } from "@/components/charts/weight-chart";
 import {
   EmptyState,
@@ -60,9 +68,17 @@ import type {
   DateRangePreset,
   GlucoseContextFilter,
 } from "@/lib/calculations/analytics";
+import type { DailyActivityDay } from "@/lib/calculations/insights-synthesis";
+import { cn } from "@/lib/utils";
 import type { MetricType } from "@/types/database";
 
-type InsightTab = "glucose" | "blood_pressure" | "weight" | "custom" | "history";
+type InsightTab =
+  | "overview"
+  | "glucose"
+  | "blood_pressure"
+  | "weight"
+  | "custom"
+  | "history";
 
 interface InsightsWorkspaceProps {
   userId: string;
@@ -87,7 +103,9 @@ function MetricKpiTile({
         <span className="text-xl font-semibold tracking-tight text-foreground tabular-nums sm:text-2xl">
           {value}
         </span>
-        <span className="truncate text-xs text-muted-foreground">{sublabel}</span>
+        <span className="truncate text-xs text-muted-foreground">
+          {sublabel}
+        </span>
       </CardContent>
     </Card>
   );
@@ -113,7 +131,7 @@ export function InsightsWorkspace({
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<InsightTab>("glucose");
+  const [activeTab, setActiveTab] = useState<InsightTab>("overview");
   const [preset, setPreset] = useState<DateRangePreset>(initialData.preset);
   const [customStart, setCustomStart] = useState(initialData.startDate);
   const [customEnd, setCustomEnd] = useState(initialData.endDate);
@@ -122,6 +140,11 @@ export function InsightsWorkspace({
   );
   const [selectedCustomId, setSelectedCustomId] = useState<string>(
     initialData.customMetrics[0]?.configId ?? ""
+  );
+  const [selectedDayDate, setSelectedDayDate] = useState<string | null>(
+    initialData.synthesis.dailyActivity[
+      initialData.synthesis.dailyActivity.length - 1
+    ]?.date ?? null
   );
   const [historyMetric, setHistoryMetric] = useState<MetricType | "all">("all");
   const [search, setSearch] = useState("");
@@ -221,6 +244,11 @@ export function InsightsWorkspace({
     ? `${data.completion.recordedCount} logged · ${data.completion.skippedCount} skipped`
     : "Period adherence";
 
+  const activeDay: DailyActivityDay | null =
+    data?.synthesis.dailyActivity.find((d) => d.date === selectedDayDate) ??
+    data?.synthesis.dailyActivity[data.synthesis.dailyActivity.length - 1] ??
+    null;
+
   return (
     <div className="flex flex-col gap-5">
       {/* Unified navigation + date range controls */}
@@ -233,8 +261,13 @@ export function InsightsWorkspace({
           >
             {(
               [
+                { id: "overview", label: "Overview", icon: Sparkles },
                 { id: "glucose", label: "Glucose", icon: Droplets },
-                { id: "blood_pressure", label: "Blood Pressure", icon: Activity },
+                {
+                  id: "blood_pressure",
+                  label: "Blood Pressure",
+                  icon: Activity,
+                },
                 { id: "weight", label: "Weight", icon: Scale },
                 { id: "custom", label: "Custom", icon: SlidersHorizontal },
                 { id: "history", label: "History", icon: History },
@@ -249,11 +282,12 @@ export function InsightsWorkspace({
                   aria-selected={active}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all sm:flex-initial ${
+                  className={cn(
+                    "inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all sm:flex-initial",
                     active
                       ? "bg-card text-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground"
-                  }`}
+                  )}
                 >
                   <Icon className="size-3.5 shrink-0" aria-hidden="true" />
                   <span>{tab.label}</span>
@@ -276,11 +310,12 @@ export function InsightsWorkspace({
                   key={opt.value}
                   type="button"
                   onClick={() => setPreset(opt.value)}
-                  className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
+                  className={cn(
+                    "rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all",
                     preset === opt.value
                       ? "bg-card text-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground"
-                  }`}
+                  )}
                 >
                   {opt.label}
                 </button>
@@ -299,7 +334,10 @@ export function InsightsWorkspace({
           <Card size="sm">
             <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-muted-foreground" htmlFor="range-start">
+                <label
+                  className="text-xs font-medium text-muted-foreground"
+                  htmlFor="range-start"
+                >
                   Start date
                 </label>
                 <Input
@@ -311,7 +349,10 @@ export function InsightsWorkspace({
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-muted-foreground" htmlFor="range-end">
+                <label
+                  className="text-xs font-medium text-muted-foreground"
+                  htmlFor="range-end"
+                >
                   End date
                 </label>
                 <Input
@@ -336,6 +377,334 @@ export function InsightsWorkspace({
         />
       ) : data ? (
         <>
+          {/* OVERVIEW TAB: Actionable synthesis & patterns */}
+          {activeTab === "overview" ? (
+            <div className="flex flex-col gap-5">
+              {/* Overview KPIs */}
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <MetricKpiTile
+                  label="Tracking Streak"
+                  value={`${data.synthesis.currentStreakDays}d`}
+                  sublabel="Consecutive active days"
+                />
+                <MetricKpiTile
+                  label="Adherence"
+                  value={adherenceValue}
+                  sublabel={adherenceSublabel}
+                />
+                <MetricKpiTile
+                  label="Fasting Avg"
+                  value={
+                    data.glucose.breakdowns.fasting.average !== null
+                      ? `${data.glucose.breakdowns.fasting.average} ${data.glucose.unit}`
+                      : "--"
+                  }
+                  sublabel={`${data.glucose.breakdowns.fasting.count} fasting readings`}
+                />
+                <MetricKpiTile
+                  label="Blood Pressure"
+                  value={
+                    data.bloodPressure.systolic.average !== null &&
+                    data.bloodPressure.diastolic.average !== null
+                      ? `${data.bloodPressure.systolic.average}/${data.bloodPressure.diastolic.average}`
+                      : "--"
+                  }
+                  sublabel={
+                    data.bloodPressure.count > 0
+                      ? `${data.bloodPressure.count} readings (mmHg)`
+                      : "No BP logged in range"
+                  }
+                />
+              </div>
+
+              {/* Actionable Takeaways */}
+              <section className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                    What Your Data Shows
+                  </h2>
+                  {data.synthesis.profileContext.pregnancyWeek ? (
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground tabular-nums">
+                      Week {data.synthesis.profileContext.pregnancyWeek}
+                    </span>
+                  ) : null}
+                </div>
+
+                {data.synthesis.highlights.length === 0 ? (
+                  <EmptyState
+                    icon={Sparkles}
+                    title="Log a few days of readings to unlock patterns"
+                    description="Once you record fasting, mealtime glucose, BP, or weight across several days, Tracx highlights meal differences, shifts, and check-in streaks here."
+                  />
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {data.synthesis.highlights.map((card) => (
+                      <button
+                        key={card.id}
+                        type="button"
+                        onClick={() => setActiveTab(card.targetTab)}
+                        className="group flex flex-col justify-between gap-2 rounded-2xl bg-card p-4 text-left shadow-2xs ring-1 ring-border/70 transition-all hover:ring-primary/40"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className={cn(
+                              "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                              card.tone === "positive"
+                                ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200"
+                                : card.tone === "attention"
+                                  ? "bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
+                                  : "bg-secondary text-secondary-foreground"
+                            )}
+                          >
+                            {card.badge}
+                          </span>
+                          <ArrowRight
+                            className="size-3.5 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                            aria-hidden="true"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {card.title}
+                          </h3>
+                          <p className="text-xs leading-relaxed text-muted-foreground">
+                            {card.description}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* Meal comparison + Daily Consistency Heatmap */}
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+                <Card className="lg:col-span-7">
+                  <CardHeader>
+                    <CardTitle>Meal-by-Meal Glucose Comparison</CardTitle>
+                    <CardDescription>
+                      Compare how fasting, breakfast, lunch, and dinner behave
+                      instead of blending meals together.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <GlucoseMealBarChart
+                      buckets={data.synthesis.mealComparison}
+                      unit={data.glucose.unit}
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card className="lg:col-span-5">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CalendarCheck2
+                        className="size-4 text-primary"
+                        aria-hidden="true"
+                      />
+                      Daily Consistency &amp; Notes
+                    </CardTitle>
+                    <CardDescription>
+                      Tap any day to inspect logged count and your daily note.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-4">
+                    <div className="grid grid-cols-7 gap-1.5">
+                      {data.synthesis.dailyActivity.map((day) => {
+                        const selected = activeDay?.date === day.date;
+                        const ratio =
+                          day.scheduledCount > 0
+                            ? day.loggedCount / day.scheduledCount
+                            : day.loggedCount > 0
+                              ? 1
+                              : 0;
+                        return (
+                          <button
+                            key={day.date}
+                            type="button"
+                            onClick={() => setSelectedDayDate(day.date)}
+                            title={`${day.shortLabel}: ${day.loggedCount} logged`}
+                            className={cn(
+                              "relative flex flex-col items-center justify-center rounded-xl py-2 text-[11px] font-medium transition-all",
+                              ratio >= 0.75
+                                ? "bg-primary/15 text-primary"
+                                : ratio > 0
+                                  ? "bg-amber-100/80 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+                                  : "bg-muted/50 text-muted-foreground",
+                              selected && "ring-2 ring-primary ring-offset-1"
+                            )}
+                          >
+                            <span className="text-[10px] opacity-75">
+                              {day.weekday.slice(0, 1)}
+                            </span>
+                            <span className="font-semibold tabular-nums">
+                              {day.date.slice(8)}
+                            </span>
+                            {day.dailyNote ? (
+                              <span
+                                aria-hidden="true"
+                                className="mt-0.5 size-1 rounded-full bg-current"
+                              />
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {activeDay ? (
+                      <div className="rounded-xl bg-muted/45 p-3 text-xs">
+                        <div className="flex items-center justify-between gap-2 font-semibold text-foreground">
+                          <span>
+                            {activeDay.weekday}, {activeDay.shortLabel}
+                          </span>
+                          <span className="tabular-nums text-primary">
+                            {activeDay.loggedCount} logged
+                          </span>
+                        </div>
+                        {activeDay.dailyNote ? (
+                          <p className="mt-1.5 flex items-start gap-1.5 text-muted-foreground">
+                            <StickyNote
+                              className="mt-0.5 size-3.5 shrink-0 text-primary"
+                              aria-hidden="true"
+                            />
+                            <span>{activeDay.dailyNote}</span>
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-muted-foreground">
+                            No daily note saved for this date.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Slot-level routine adherence + Doctor Visit Prep */}
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+                <Card className="lg:col-span-6">
+                  <CardHeader>
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <Flame
+                            className="size-4 text-primary"
+                            aria-hidden="true"
+                          />
+                          Routine by Check-In Time
+                        </CardTitle>
+                        <CardDescription>
+                          Spot which scheduled check-ins are effortless vs
+                          commonly missed.
+                        </CardDescription>
+                      </div>
+                      <Link
+                        href="/profile/reminders"
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        Tune reminders
+                      </Link>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-3">
+                    {data.synthesis.slotConsistency.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        No scheduled check-in slots configured.
+                      </p>
+                    ) : (
+                      data.synthesis.slotConsistency.map((slot) => (
+                        <div key={slot.id} className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-foreground">
+                              {slot.metricLabel} · {slot.context}
+                            </span>
+                            <span className="text-muted-foreground tabular-nums">
+                              {slot.loggedCount}/{slot.expectedCount} (
+                              {slot.percent}%)
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all",
+                                slot.percent >= 80
+                                  ? "bg-primary"
+                                  : slot.percent >= 50
+                                    ? "bg-amber-500"
+                                    : "bg-muted-foreground/50"
+                              )}
+                              style={{ width: `${slot.percent}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="lg:col-span-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Stethoscope
+                        className="size-4 text-primary"
+                        aria-hidden="true"
+                      />
+                      Care Team Visit Prep
+                    </CardTitle>
+                    <CardDescription>
+                      {data.synthesis.profileContext.providerName
+                        ? `Summary ready to share with ${data.synthesis.profileContext.providerName}.`
+                        : "Key numbers from this period formatted for your next prenatal appointment."}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-4">
+                    {data.synthesis.visitPrepBullets.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Log readings to assemble an appointment-ready summary.
+                      </p>
+                    ) : (
+                      <ul className="space-y-2 rounded-xl bg-muted/40 p-3.5 text-xs leading-relaxed text-foreground">
+                        {data.synthesis.visitPrepBullets.map((line, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
+                            <span>{line}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    <div className="flex flex-wrap gap-2">
+                      <Link
+                        href="/reports"
+                        className={cn(
+                          buttonVariants({ size: "sm", variant: "default" }),
+                          "gap-1.5 rounded-lg"
+                        )}
+                      >
+                        <FileText className="size-3.5" aria-hidden="true" />
+                        Export Weekly PDF
+                      </Link>
+                      <Link
+                        href="/profile/tracking"
+                        className={cn(
+                          buttonVariants({ size: "sm", variant: "secondary" }),
+                          "gap-1.5 rounded-lg"
+                        )}
+                      >
+                        <SlidersHorizontal
+                          className="size-3.5"
+                          aria-hidden="true"
+                        />
+                        Provider Targets
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          ) : null}
+
+          {/* GLUCOSE TAB */}
           {activeTab === "glucose" ? (
             <div className="flex flex-col gap-4">
               {glucoseFilter === "all" ? (
@@ -429,7 +798,7 @@ export function InsightsWorkspace({
 
               <Card>
                 <CardHeader className="gap-3">
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <CardTitle>Blood Glucose Trend</CardTitle>
                       <CardDescription>
@@ -437,6 +806,15 @@ export function InsightsWorkspace({
                         strictly separated.
                       </CardDescription>
                     </div>
+                    {!data.synthesis.providerTargets.glucose?.fastingMax &&
+                    !data.synthesis.providerTargets.glucose?.postMealMax ? (
+                      <Link
+                        href="/profile/tracking"
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        + Add doctor&apos;s reference range
+                      </Link>
+                    ) : null}
                   </div>
 
                   <div className="flex flex-wrap gap-1.5">
@@ -455,11 +833,12 @@ export function InsightsWorkspace({
                         key={chip.id}
                         type="button"
                         onClick={() => setGlucoseFilter(chip.id)}
-                        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                        className={cn(
+                          "rounded-full px-3 py-1 text-xs font-medium transition-colors",
                           glucoseFilter === chip.id
                             ? "bg-primary text-primary-foreground"
                             : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                        }`}
+                        )}
                       >
                         {chip.label}
                       </button>
@@ -471,12 +850,105 @@ export function InsightsWorkspace({
                     points={data.glucose.points}
                     unit={data.glucose.unit}
                     filter={glucoseFilter}
+                    fastingMax={
+                      data.synthesis.providerTargets.glucose?.fastingMax
+                    }
+                    postMealMax={
+                      data.synthesis.providerTargets.glucose?.postMealMax
+                    }
                   />
                 </CardContent>
               </Card>
+
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+                <Card className="lg:col-span-7">
+                  <CardHeader>
+                    <CardTitle>Average by Meal Timing</CardTitle>
+                    <CardDescription>
+                      Identify which specific meal time produces higher readings.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <GlucoseMealBarChart
+                      buckets={data.synthesis.mealComparison}
+                      unit={data.glucose.unit}
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card className="lg:col-span-5">
+                  <CardHeader>
+                    <CardTitle>Peak &amp; Lowest Context</CardTitle>
+                    <CardDescription>
+                      Readings paired with the meal or activity notes you saved.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-3">
+                    {data.synthesis.glucoseCallouts.highest ? (
+                      <div className="rounded-xl bg-muted/45 p-3 text-xs">
+                        <div className="flex items-center justify-between font-semibold">
+                          <span className="text-muted-foreground">
+                            {data.synthesis.glucoseCallouts.highest.label}
+                          </span>
+                          <span className="text-foreground tabular-nums">
+                            {data.synthesis.glucoseCallouts.highest.value}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-muted-foreground">
+                          {data.synthesis.glucoseCallouts.highest.context} ·{" "}
+                          {
+                            data.synthesis.glucoseCallouts.highest
+                              .measuredAtLabel
+                          }
+                        </p>
+                        {data.synthesis.glucoseCallouts.highest.note ? (
+                          <p className="mt-1.5 italic text-foreground/85">
+                            &ldquo;{data.synthesis.glucoseCallouts.highest.note}
+                            &rdquo;
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {data.synthesis.glucoseCallouts.lowest ? (
+                      <div className="rounded-xl bg-muted/45 p-3 text-xs">
+                        <div className="flex items-center justify-between font-semibold">
+                          <span className="text-muted-foreground">
+                            {data.synthesis.glucoseCallouts.lowest.label}
+                          </span>
+                          <span className="text-foreground tabular-nums">
+                            {data.synthesis.glucoseCallouts.lowest.value}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-muted-foreground">
+                          {data.synthesis.glucoseCallouts.lowest.context} ·{" "}
+                          {
+                            data.synthesis.glucoseCallouts.lowest
+                              .measuredAtLabel
+                          }
+                        </p>
+                        {data.synthesis.glucoseCallouts.lowest.note ? (
+                          <p className="mt-1.5 italic text-foreground/85">
+                            &ldquo;{data.synthesis.glucoseCallouts.lowest.note}
+                            &rdquo;
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {!data.synthesis.glucoseCallouts.highest &&
+                    !data.synthesis.glucoseCallouts.lowest ? (
+                      <p className="text-xs text-muted-foreground">
+                        No glucose readings in this range yet.
+                      </p>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           ) : null}
 
+          {/* BLOOD PRESSURE TAB */}
           {activeTab === "blood_pressure" ? (
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -523,12 +995,54 @@ export function InsightsWorkspace({
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <BloodPressureChart points={data.bloodPressure.points} />
+                  <BloodPressureChart
+                    points={data.bloodPressure.points}
+                    systolicMax={
+                      data.synthesis.providerTargets.bloodPressure?.systolicMax
+                    }
+                    diastolicMax={
+                      data.synthesis.providerTargets.bloodPressure?.diastolicMax
+                    }
+                  />
                 </CardContent>
               </Card>
+
+              {data.synthesis.bpCallouts.highest ||
+              data.synthesis.bpCallouts.lowest ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {[
+                    data.synthesis.bpCallouts.highest,
+                    data.synthesis.bpCallouts.lowest,
+                  ]
+                    .filter(Boolean)
+                    .map((callout) => (
+                      <Card key={callout!.label} size="sm">
+                        <CardContent className="flex flex-col gap-1 py-3 text-xs">
+                          <div className="flex items-center justify-between font-semibold">
+                            <span className="text-muted-foreground">
+                              {callout!.label}
+                            </span>
+                            <span className="text-sm text-foreground tabular-nums">
+                              {callout!.value}
+                            </span>
+                          </div>
+                          <span className="text-muted-foreground">
+                            {callout!.context} · {callout!.measuredAtLabel}
+                          </span>
+                          {callout!.note ? (
+                            <span className="pt-1 italic text-foreground/85">
+                              &ldquo;{callout!.note}&rdquo;
+                            </span>
+                          ) : null}
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
+          {/* WEIGHT TAB */}
           {activeTab === "weight" ? (
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -551,6 +1065,15 @@ export function InsightsWorkspace({
                   sublabel="First to latest in window"
                 />
                 <MetricKpiTile
+                  label="Weekly Pace"
+                  value={
+                    data.synthesis.weightPacePerWeek !== null
+                      ? `${data.synthesis.weightPacePerWeek > 0 ? "+" : ""}${data.synthesis.weightPacePerWeek} ${data.weight.unit}/wk`
+                      : "--"
+                  }
+                  sublabel="Average rate of change"
+                />
+                <MetricKpiTile
                   label="Range"
                   value={
                     data.weight.stats.min !== null &&
@@ -559,11 +1082,6 @@ export function InsightsWorkspace({
                       : "--"
                   }
                   sublabel={data.weight.unit}
-                />
-                <MetricKpiTile
-                  label="Adherence"
-                  value={adherenceValue}
-                  sublabel={adherenceSublabel}
                 />
               </div>
 
@@ -584,6 +1102,7 @@ export function InsightsWorkspace({
             </div>
           ) : null}
 
+          {/* CUSTOM METRICS TAB */}
           {activeTab === "custom" ? (
             <div className="flex flex-col gap-4">
               {!activeCustomSeries ? (
@@ -594,7 +1113,10 @@ export function InsightsWorkspace({
                   action={
                     <Link
                       href="/profile/tracking"
-                      className={buttonVariants({ size: "lg", variant: "secondary" })}
+                      className={buttonVariants({
+                        size: "lg",
+                        variant: "secondary",
+                      })}
                     >
                       Configure Custom Metrics
                     </Link>
@@ -658,12 +1180,15 @@ export function InsightsWorkspace({
                             <button
                               key={series.configId}
                               type="button"
-                              onClick={() => setSelectedCustomId(series.configId)}
-                              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                              onClick={() =>
+                                setSelectedCustomId(series.configId)
+                              }
+                              className={cn(
+                                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
                                 activeCustomSeries.configId === series.configId
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                              }`}
+                              )}
                             >
                               {series.label}
                             </button>
@@ -684,6 +1209,7 @@ export function InsightsWorkspace({
             </div>
           ) : null}
 
+          {/* HISTORY TAB */}
           {activeTab === "history" ? (
             <Card>
               <CardHeader className="gap-4">

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { ArrowLeft } from "lucide-react";
 import { LoadingState } from "@/components/layout/feedback-states";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { AiAssistantPanel } from "@/features/ai-assistant/components/ai-assistant-panel";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,11 +33,12 @@ export default function AssistantPage() {
           </p>
         </div>
 
-        <Link href="/dashboard">
-          <Button size="lg" variant="outline" type="button">
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Back to Home
-          </Button>
+        <Link
+          href="/dashboard"
+          className={buttonVariants({ size: "lg", variant: "outline" })}
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back to Home
         </Link>
       </div>
 

@@ -39,30 +39,32 @@ export function FloatingAiAssistant() {
           side="right"
           className="flex h-full w-full flex-col gap-0 p-0 sm:max-w-md"
         >
-          <SheetHeader className="border-b border-border/80 px-5 py-4 pr-12">
-            <SheetTitle className="flex items-center gap-2 text-base">
-              <span className="flex size-7 items-center justify-center rounded-lg bg-primary/12 text-primary">
-                <Sparkles className="size-4" aria-hidden="true" />
-              </span>
-              Ask Tracx AI
-            </SheetTitle>
+          <SheetHeader className="px-5 pt-4 pb-3 pr-12">
+            <div className="flex items-center justify-between gap-2">
+              <SheetTitle className="flex items-center gap-2 text-base">
+                <span className="flex size-7 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Sparkles className="size-4" aria-hidden="true" />
+                </span>
+                Ask Tracx AI
+              </SheetTitle>
+            </div>
             <SheetDescription className="text-xs">
               Data-only Q&amp;A across your saved readings. Not medical advice.
             </SheetDescription>
 
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               <Link
                 href="/log?mode=voice"
                 onClick={() => setOpen(false)}
                 className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary/80"
               >
-                <Mic className="size-3.5" aria-hidden="true" />
+                <Mic className="size-3" aria-hidden="true" />
                 Voice Log
               </Link>
               <Link
                 href="/assistant"
                 onClick={() => setOpen(false)}
-                className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 Full view
                 <ArrowUpRight className="size-3" aria-hidden="true" />
@@ -70,7 +72,7 @@ export function FloatingAiAssistant() {
             </div>
           </SheetHeader>
 
-          <div className="flex min-h-0 flex-1 flex-col p-5">
+          <div className="flex min-h-0 flex-1 flex-col px-5 pb-4 pt-1">
             <AiAssistantPanel compact />
           </div>
         </SheetContent>

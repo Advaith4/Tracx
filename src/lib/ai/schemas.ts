@@ -71,11 +71,17 @@ export const extractRequestSchema = z.object({
   timezone: z.string().optional(),
 });
 
+export const chatHistoryTurnSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  text: z.string().max(1500),
+});
+
 export const chatRequestSchema = z.object({
   message: z
     .string()
     .trim()
-    .min(2, "Please enter a question.")
+    .min(1, "Please enter a message.")
     .max(800, "Question must be 800 characters or fewer."),
   rangePreset: z.enum(["7d", "14d", "30d"]).default("14d"),
+  history: z.array(chatHistoryTurnSchema).max(8).optional(),
 });

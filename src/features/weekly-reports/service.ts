@@ -7,7 +7,10 @@ import {
   type WeeklyReportAiNarrative,
 } from "@/features/weekly-reports/schemas";
 import { buildWeeklyReportSystemPrompt } from "@/lib/ai/prompts/weekly-report";
-import { resolveAiModel } from "@/lib/ai/providers";
+import {
+  resolveAiModelCandidates,
+  runWithAiFallback,
+} from "@/lib/ai/providers";
 import { safeTimezone } from "@/lib/calculations/daily-status";
 import {
   buildDeterministicFallbackNarrative,
@@ -184,15 +187,19 @@ export async function generateAndSaveWeeklyReport(params: {
   let narrative = buildDeterministicFallbackNarrative(statistics);
   let usedAi = false;
 
-  const resolvedModel = resolveAiModel();
-  if (resolvedModel.configured) {
+  const resolvedModels = resolveAiModelCandidates();
+  if (resolvedModels.configured) {
     try {
-      const aiResult = await generateText({
-        model: resolvedModel.model,
-        output: Output.object({ schema: weeklyReportAiNarrativeSchema }),
-        system: buildWeeklyReportSystemPrompt(),
-        prompt: `Generate descriptive weekly observations and provider discussion prompts from this exact deterministic report JSON:\n${JSON.stringify(statistics)}`,
-      });
+      const { result: aiResult } = await runWithAiFallback(
+        resolvedModels.candidates,
+        (model) =>
+          generateText({
+            model,
+            output: Output.object({ schema: weeklyReportAiNarrativeSchema }),
+            system: buildWeeklyReportSystemPrompt(),
+            prompt: `Generate descriptive weekly observations and provider discussion prompts from this exact deterministic report JSON:\n${JSON.stringify(statistics)}`,
+          })
+      );
       const validated = weeklyReportAiNarrativeSchema.safeParse(aiResult.output);
       if (validated.success) {
         narrative = validated.data;

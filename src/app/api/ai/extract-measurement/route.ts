@@ -1,7 +1,10 @@
 import { generateText, Output } from "ai";
 import { ensureAndListTrackingConfigs } from "@/features/tracking-config/service";
 import { buildExtractionSystemPrompt } from "@/lib/ai/prompts/extraction";
-import { resolveAiModel } from "@/lib/ai/providers";
+import {
+  resolveAiModelCandidates,
+  runWithAiFallback,
+} from "@/lib/ai/providers";
 import {
   checkAiRateLimit,
   detectUrgentSymptomMention,
@@ -46,9 +49,9 @@ export async function POST(request: Request) {
     });
   }
 
-  const resolvedModel = resolveAiModel();
-  if (!resolvedModel.configured) {
-    return apiError("AI_NOT_CONFIGURED", resolvedModel.reason, 503);
+  const resolvedModels = resolveAiModelCandidates();
+  if (!resolvedModels.configured) {
+    return apiError("AI_NOT_CONFIGURED", resolvedModels.reason, 503);
   }
 
   try {
@@ -68,19 +71,23 @@ export async function POST(request: Request) {
     const defaultWeightUnit =
       configs.find((c) => c.metric_type === "weight")?.unit ?? "kg";
 
-    const result = await generateText({
-      model: resolvedModel.model,
-      output: Output.object({
-        schema: extractedMeasurementResponseSchema,
-      }),
-      system: buildExtractionSystemPrompt({
-        localNowIso,
-        timezone,
-        defaultGlucoseUnit,
-        defaultWeightUnit,
-      }),
-      prompt: parsed.data.text,
-    });
+    const { result } = await runWithAiFallback(
+      resolvedModels.candidates,
+      (model) =>
+        generateText({
+          model,
+          output: Output.object({
+            schema: extractedMeasurementResponseSchema,
+          }),
+          system: buildExtractionSystemPrompt({
+            localNowIso,
+            timezone,
+            defaultGlucoseUnit,
+            defaultWeightUnit,
+          }),
+          prompt: parsed.data.text,
+        })
+    );
 
     const validated = extractedMeasurementResponseSchema.safeParse(
       result.output

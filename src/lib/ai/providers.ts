@@ -16,6 +16,13 @@ export interface UnconfiguredAiModel {
   reason: string;
 }
 
+const DEFAULT_GEMINI_MODELS = [
+  "gemini-3.5-flash-lite",
+  "gemini-3.8-flash",
+] as const;
+
+const DEFAULT_OPENAI_MODELS = ["gpt-4o-mini"] as const;
+
 function inferProvider(
   explicitProvider: string | undefined,
   apiKey: string
@@ -28,7 +35,13 @@ function inferProvider(
   return "gemini";
 }
 
-export function resolveAiModel(): ResolvedAiModel | UnconfiguredAiModel {
+export function resolveAiModelCandidates():
+  | {
+      configured: true;
+      provider: SupportedAiProvider;
+      candidates: Array<{ modelId: string; model: LanguageModel }>;
+    }
+  | UnconfiguredAiModel {
   if (typeof window !== "undefined") {
     throw new Error("AI providers must only be accessed on the server.");
   }
@@ -46,22 +59,59 @@ export function resolveAiModel(): ResolvedAiModel | UnconfiguredAiModel {
   const overrideModel = process.env.AI_MODEL?.trim();
 
   if (provider === "openai") {
-    const modelId = overrideModel || "gpt-4o-mini";
     const client = createOpenAI({ apiKey });
+    const ids = overrideModel
+      ? [overrideModel, ...DEFAULT_OPENAI_MODELS.filter((m) => m !== overrideModel)]
+      : [...DEFAULT_OPENAI_MODELS];
+
     return {
       configured: true,
       provider,
-      modelId,
-      model: client(modelId),
+      candidates: ids.map((modelId) => ({ modelId, model: client(modelId) })),
     };
   }
 
-  const modelId = overrideModel || "gemini-2.5-flash";
   const client = createGoogleGenerativeAI({ apiKey });
+  const ids = overrideModel
+    ? [overrideModel, ...DEFAULT_GEMINI_MODELS.filter((m) => m !== overrideModel)]
+    : [...DEFAULT_GEMINI_MODELS];
+
   return {
     configured: true,
     provider,
-    modelId,
-    model: client(modelId),
+    candidates: ids.map((modelId) => ({ modelId, model: client(modelId) })),
   };
+}
+
+export function resolveAiModel(): ResolvedAiModel | UnconfiguredAiModel {
+  const resolved = resolveAiModelCandidates();
+  if (!resolved.configured) {
+    return resolved;
+  }
+
+  const primary = resolved.candidates[0];
+  return {
+    configured: true,
+    provider: resolved.provider,
+    modelId: primary.modelId,
+    model: primary.model,
+  };
+}
+
+export async function runWithAiFallback<T>(
+  candidates: Array<{ modelId: string; model: LanguageModel }>,
+  runner: (model: LanguageModel, modelId: string) => Promise<T>
+): Promise<{ result: T; modelId: string }> {
+  let lastError: unknown;
+  for (const candidate of candidates) {
+    try {
+      const result = await runner(candidate.model, candidate.modelId);
+      return { result, modelId: candidate.modelId };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("All configured AI models failed.");
 }

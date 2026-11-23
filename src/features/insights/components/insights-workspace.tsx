@@ -82,7 +82,7 @@ function StatCard({
         <span className="text-xs font-medium text-muted-foreground">
           {label}
         </span>
-        <span className="text-xl font-semibold tracking-tight text-foreground">
+        <span className="text-xl font-semibold tracking-tight text-foreground tabular-nums">
           {value}
         </span>
         {sublabel ? (
@@ -108,7 +108,7 @@ function ContextBreakdownCard({
         <span className="text-xs font-medium text-muted-foreground">
           {title}
         </span>
-        <span className="text-lg font-semibold text-foreground">
+        <span className="text-lg font-semibold text-foreground tabular-nums">
           {stats.average !== null ? `${stats.average} ${unit}` : "--"}
         </span>
         <span className="text-[11px] text-muted-foreground">
@@ -233,104 +233,103 @@ export function InsightsWorkspace({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Date range selector */}
-      <Card size="sm">
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-medium text-muted-foreground">
-              Date Range
-            </span>
-            {data ? (
-              <span className="text-xs text-muted-foreground">
-                {data.startDate} to {data.endDate}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
+      {/* Segmented date range & section switcher */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-card p-3.5 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             {(
               [
-                { value: "7d", label: "Last 7 days" },
-                { value: "14d", label: "Last 14 days" },
-                { value: "30d", label: "Last 30 days" },
+                { value: "7d", label: "7D" },
+                { value: "14d", label: "14D" },
+                { value: "30d", label: "30D" },
                 { value: "custom", label: "Custom" },
               ] as const
             ).map((opt) => (
-              <Button
+              <button
                 key={opt.value}
-                size="sm"
-                variant={preset === opt.value ? "default" : "outline"}
                 type="button"
                 onClick={() => setPreset(opt.value)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                  preset === opt.value
+                    ? "bg-primary text-primary-foreground shadow-2xs"
+                    : "bg-muted/60 text-muted-foreground hover:text-foreground"
+                }`}
               >
                 {opt.label}
-              </Button>
+              </button>
             ))}
           </div>
 
-          {preset === "custom" ? (
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground" htmlFor="range-start">
-                  From
-                </label>
-                <Input
-                  id="range-start"
-                  type="date"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  className="h-10"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground" htmlFor="range-end">
-                  To
-                </label>
-                <Input
-                  id="range-end"
-                  type="date"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  className="h-10"
-                />
-              </div>
-            </div>
+          {data ? (
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+              {data.startDate} → {data.endDate}
+            </span>
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Tab switcher */}
-      <div
-        role="tablist"
-        aria-label="Insights sections"
-        className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"
-      >
-        {(
-          [
-            { id: "glucose", label: "Glucose", icon: Droplets },
-            { id: "blood_pressure", label: "Blood Pressure", icon: Activity },
-            { id: "weight", label: "Weight", icon: Scale },
-            { id: "history", label: "History", icon: History },
-          ] as const
-        ).map((tab) => {
-          const Icon = tab.icon;
-          const active = activeTab === tab.id;
-          return (
-            <Button
-              key={tab.id}
-              role="tab"
-              aria-selected={active}
-              size="lg"
-              variant={active ? "default" : "outline"}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className="justify-center"
-            >
-              <Icon className="size-4" aria-hidden="true" />
-              <span>{tab.label}</span>
-            </Button>
-          );
-        })}
+        {preset === "custom" ? (
+          <div className="grid grid-cols-2 gap-3 border-t border-border/70 pt-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground" htmlFor="range-start">
+                From
+              </label>
+              <Input
+                id="range-start"
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="h-10"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground" htmlFor="range-end">
+                To
+              </label>
+              <Input
+                id="range-end"
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="h-10"
+              />
+            </div>
+          </div>
+        ) : null}
+
+        <div
+          role="tablist"
+          aria-label="Insights sections"
+          className="grid grid-cols-2 gap-1 rounded-xl border border-border/70 bg-muted/50 p-1 sm:grid-cols-4"
+        >
+          {(
+            [
+              { id: "glucose", label: "Glucose", icon: Droplets },
+              { id: "blood_pressure", label: "Blood Pressure", icon: Activity },
+              { id: "weight", label: "Weight", icon: Scale },
+              { id: "history", label: "History", icon: History },
+            ] as const
+          ).map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={active}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                  active
+                    ? "bg-card text-foreground shadow-2xs ring-1 ring-border/80"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {isLoading && !data ? (

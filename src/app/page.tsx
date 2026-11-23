@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 
 export default function WelcomePage() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center bg-background px-6 py-12">
-      <div className="flex w-full max-w-md flex-col gap-8 rounded-2xl border border-border bg-card p-8 text-card-foreground shadow-sm">
+    <main className="flex flex-1 flex-col items-center justify-center bg-gradient-to-b from-secondary/35 via-background to-background px-6 py-12">
+      <div className="flex w-full max-w-md flex-col gap-8 rounded-3xl border border-border/80 bg-card p-8 text-card-foreground shadow-sm">
         <div className="flex items-center gap-3">
           <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/12 text-primary">
             <HeartPulse className="size-6" aria-hidden="true" />

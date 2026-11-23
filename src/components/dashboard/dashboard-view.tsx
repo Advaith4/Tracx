@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { SlidersHorizontal, Sparkles } from "lucide-react";
+import { Mic, Plus, SlidersHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { DailyNoteCard } from "./daily-note-card";
 import { DailyProgressCard } from "./daily-progress-card";
 import { GreetingHeader } from "./greeting-header";
@@ -7,7 +8,6 @@ import {
   MetricSummaryGrid,
   type DashboardMetricCard,
 } from "./metric-summary-grid";
-import { QuickActionsBar } from "./quick-actions-bar";
 import {
   RecentMeasurementsList,
   type RecentMeasurement,
@@ -39,43 +39,77 @@ export function DashboardView({
     (t) => t.status === "recorded" || t.status === "late"
   ).length;
 
+  const nextTask = tasks.find(
+    (t) => t.status === "pending" || t.status === "upcoming"
+  );
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <GreetingHeader name={displayName} />
+
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/assistant"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-secondary/60"
-          >
-            <Sparkles className="size-3.5" aria-hidden="true" />
-            Ask Assistant
+          <Link href="/log?mode=voice">
+            <Button size="default" className="gap-2 rounded-full px-4 shadow-xs" type="button">
+              <Mic className="size-4" aria-hidden="true" />
+              Voice Log
+            </Button>
+          </Link>
+          <Link href="/log?mode=manual">
+            <Button
+              size="default"
+              variant="outline"
+              className="gap-1.5 rounded-full bg-card px-4"
+              type="button"
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              Add Entry
+            </Button>
           </Link>
           <Link
             href="/profile/tracking"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Tracking Settings"
+            title="Tracking Settings"
           >
-            <SlidersHorizontal className="size-3.5" aria-hidden="true" />
-            Tracking Settings
+            <Button
+              size="icon"
+              variant="outline"
+              className="rounded-full bg-card text-muted-foreground hover:text-foreground"
+              type="button"
+              aria-label="Tracking Settings"
+            >
+              <SlidersHorizontal className="size-4" aria-hidden="true" />
+            </Button>
           </Link>
         </div>
       </div>
 
-      <DailyProgressCard completed={completedCount} total={tasks.length} />
-
-      <QuickActionsBar />
+      <DailyProgressCard
+        completed={completedCount}
+        total={tasks.length}
+        nextTaskSummary={
+          nextTask
+            ? `Next: ${nextTask.measurementName} (${nextTask.context}) at ${nextTask.scheduledTime}`
+            : undefined
+        }
+      />
 
       <MetricSummaryGrid metrics={metrics} />
 
       <TodayScheduleList items={tasks} todayDate={todayDate} />
 
-      <RecentMeasurementsList records={recentMeasurements} />
-
-      <DailyNoteCard
-        key={`${todayDate}-${dailyNote}`}
-        todayDate={todayDate}
-        initialContent={dailyNote}
-      />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+        <div className="lg:col-span-7">
+          <RecentMeasurementsList records={recentMeasurements} />
+        </div>
+        <div className="lg:col-span-5">
+          <DailyNoteCard
+            key={`${todayDate}-${dailyNote}`}
+            todayDate={todayDate}
+            initialContent={dailyNote}
+          />
+        </div>
+      </div>
     </div>
   );
 }

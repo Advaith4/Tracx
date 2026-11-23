@@ -157,191 +157,208 @@ export function ReportsWorkspace({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Generate Weekly Report</CardTitle>
-          <CardDescription>
-            Creates a structured summary from your recorded measurements with
-            deterministic statistics and neutral observations.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="rep-start">Period start</Label>
-              <Input
-                id="rep-start"
-                type="date"
-                value={periodStart}
-                onChange={(e) => setPeriodStart(e.target.value)}
-                className="h-11"
-              />
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+      <div className="flex flex-col gap-5 lg:col-span-4">
+        <Card className="border-border/80">
+          <CardHeader>
+            <CardTitle>Generate Report</CardTitle>
+            <CardDescription>
+              Structured summary with deterministic statistics and neutral
+              observations.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="rep-start">Start</Label>
+                <Input
+                  id="rep-start"
+                  type="date"
+                  value={periodStart}
+                  onChange={(e) => setPeriodStart(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="rep-end">End</Label>
+                <Input
+                  id="rep-end"
+                  type="date"
+                  value={periodEnd}
+                  onChange={(e) => setPeriodEnd(e.target.value)}
+                  className="h-10"
+                />
+              </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="rep-end">Period end</Label>
-              <Input
-                id="rep-end"
-                type="date"
-                value={periodEnd}
-                onChange={(e) => setPeriodEnd(e.target.value)}
-                className="h-11"
+            <label className="flex cursor-pointer items-center justify-between gap-2 rounded-xl border border-border/80 px-3.5 py-2.5 text-xs font-medium">
+              <span>Email copy to me</span>
+              <Switch
+                checked={sendEmailOnGenerate}
+                onCheckedChange={setSendEmailOnGenerate}
               />
-            </div>
-          </div>
+            </label>
 
-          <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border px-3.5 py-3 text-sm">
-            <span>Email a copy to my registered address</span>
-            <Switch
-              checked={sendEmailOnGenerate}
-              onCheckedChange={setSendEmailOnGenerate}
-            />
-          </label>
+            <Button
+              size="lg"
+              type="button"
+              disabled={generateMutation.isPending}
+              onClick={() => generateMutation.mutate()}
+              className="w-full"
+            >
+              {generateMutation.isPending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Plus className="size-4" aria-hidden="true" />
+                  Generate Report
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
 
-          <Button
-            size="lg"
-            type="button"
-            disabled={generateMutation.isPending}
-            onClick={() => generateMutation.mutate()}
-          >
-            {generateMutation.isPending ? (
-              <>
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                Generating Report...
-              </>
-            ) : (
-              <>
-                <Plus className="size-4" aria-hidden="true" />
-                Generate Report
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+        {reports.length > 0 ? (
+          <Card className="overflow-hidden border-border/80">
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm">Saved Reports ({reports.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="divide-y divide-border/70 border-t border-border/70 p-0">
+              {reports.map((rep) => {
+                const selected = activeReport?.id === rep.id;
+                return (
+                  <button
+                    key={rep.id}
+                    type="button"
+                    onClick={() => setSelectedId(rep.id)}
+                    className={`flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors ${
+                      selected
+                        ? "bg-primary/8 text-primary"
+                        : "text-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <span className="text-xs font-semibold tabular-nums">
+                        {rep.periodStart} → {rep.periodEnd}
+                      </span>
+                      <span className="truncate text-[11px] text-muted-foreground">
+                        {rep.statistics.overview.totalRecorded} recorded ·{" "}
+                        {new Date(rep.generatedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
 
-      {reports.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title="No weekly reports yet"
-          description="Generate your first weekly summary above to review your records and download a PDF."
-        />
-      ) : (
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-wrap gap-2">
-            {reports.map((rep) => {
-              const selected = activeReport?.id === rep.id;
-              return (
-                <button
-                  key={rep.id}
-                  type="button"
-                  onClick={() => setSelectedId(rep.id)}
-                  className={`rounded-xl px-3.5 py-2 text-xs font-medium transition-colors ${
-                    selected
-                      ? "bg-primary text-primary-foreground"
-                      : "border border-border bg-card text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {rep.periodStart} → {rep.periodEnd}
-                </button>
-              );
-            })}
-          </div>
-
-          {activeReport ? (
-            <Card>
-              <CardHeader>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <CardTitle>
-                      Weekly Report: {activeReport.periodStart} to{" "}
-                      {activeReport.periodEnd}
-                    </CardTitle>
-                    <CardDescription>
-                      Generated{" "}
-                      {new Date(activeReport.generatedAt).toLocaleString()}
-                    </CardDescription>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <a
-                      href={`/api/reports/${activeReport.id}/pdf`}
-                      download
-                    >
-                      <Button size="sm" variant="secondary" type="button">
-                        <Download className="size-3.5" aria-hidden="true" />
-                        Download PDF
-                      </Button>
-                    </a>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      type="button"
-                      disabled={emailingId === activeReport.id}
-                      onClick={() => void handleEmailReport(activeReport.id)}
-                    >
-                      {emailingId === activeReport.id ? (
-                        <Loader2
-                          className="size-3.5 animate-spin"
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <Mail className="size-3.5" aria-hidden="true" />
-                      )}
-                      Email
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      type="button"
-                      onClick={() => deleteMutation.mutate(activeReport.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="size-3.5" aria-hidden="true" />
-                    </Button>
-                  </div>
+      <div className="lg:col-span-8">
+        {reports.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No weekly reports yet"
+            description="Generate your first weekly summary on the left to review your records and download a PDF."
+          />
+        ) : activeReport ? (
+          <Card className="border-border/80">
+            <CardHeader className="border-b border-border/70 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="tabular-nums">
+                    Weekly Report: {activeReport.periodStart} to{" "}
+                    {activeReport.periodEnd}
+                  </CardTitle>
+                  <CardDescription>
+                    Generated{" "}
+                    {new Date(activeReport.generatedAt).toLocaleString()}
+                  </CardDescription>
                 </div>
-              </CardHeader>
 
-              <CardContent className="flex flex-col gap-5 text-sm">
-                <p className="leading-relaxed text-foreground">
-                  {activeReport.narrative.summaryParagraph}
-                </p>
-
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <div className="rounded-xl bg-muted/50 p-3">
-                    <span className="block text-xs text-muted-foreground">
-                      Scheduled
-                    </span>
-                    <span className="text-lg font-semibold">
-                      {activeReport.statistics.overview.totalScheduled}
-                    </span>
-                  </div>
-                  <div className="rounded-xl bg-muted/50 p-3">
-                    <span className="block text-xs text-muted-foreground">
-                      Recorded
-                    </span>
-                    <span className="text-lg font-semibold">
-                      {activeReport.statistics.overview.totalRecorded}
-                    </span>
-                  </div>
-                  <div className="rounded-xl bg-muted/50 p-3">
-                    <span className="block text-xs text-muted-foreground">
-                      Skipped
-                    </span>
-                    <span className="text-lg font-semibold">
-                      {activeReport.statistics.overview.totalSkipped}
-                    </span>
-                  </div>
-                  <div className="rounded-xl bg-muted/50 p-3">
-                    <span className="block text-xs text-muted-foreground">
-                      Missing
-                    </span>
-                    <span className="text-lg font-semibold">
-                      {activeReport.statistics.overview.missingCount}
-                    </span>
-                  </div>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href={`/api/reports/${activeReport.id}/pdf`}
+                    download
+                  >
+                    <Button size="sm" variant="secondary" type="button">
+                      <Download className="size-3.5" aria-hidden="true" />
+                      Download PDF
+                    </Button>
+                  </a>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    type="button"
+                    disabled={emailingId === activeReport.id}
+                    onClick={() => void handleEmailReport(activeReport.id)}
+                  >
+                    {emailingId === activeReport.id ? (
+                      <Loader2
+                        className="size-3.5 animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <Mail className="size-3.5" aria-hidden="true" />
+                    )}
+                    Email
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    type="button"
+                    onClick={() => deleteMutation.mutate(activeReport.id)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="size-3.5" aria-hidden="true" />
+                  </Button>
                 </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="flex flex-col gap-5 pt-5 text-sm">
+              <p className="leading-relaxed text-foreground">
+                {activeReport.narrative.summaryParagraph}
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-xl border border-border/70 bg-muted/35 p-3">
+                  <span className="block text-xs text-muted-foreground">
+                    Scheduled
+                  </span>
+                  <span className="text-lg font-semibold tabular-nums">
+                    {activeReport.statistics.overview.totalScheduled}
+                  </span>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-muted/35 p-3">
+                  <span className="block text-xs text-muted-foreground">
+                    Recorded
+                  </span>
+                  <span className="text-lg font-semibold tabular-nums">
+                    {activeReport.statistics.overview.totalRecorded}
+                  </span>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-muted/35 p-3">
+                  <span className="block text-xs text-muted-foreground">
+                    Skipped
+                  </span>
+                  <span className="text-lg font-semibold tabular-nums">
+                    {activeReport.statistics.overview.totalSkipped}
+                  </span>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-muted/35 p-3">
+                  <span className="block text-xs text-muted-foreground">
+                    Missing
+                  </span>
+                  <span className="text-lg font-semibold tabular-nums">
+                    {activeReport.statistics.overview.missingCount}
+                  </span>
+                </div>
+              </div>
 
                 {/* Blood Glucose context-separated */}
                 <div className="flex flex-col gap-2">
@@ -461,9 +478,8 @@ export function ReportsWorkspace({
                 </div>
               </CardContent>
             </Card>
-          ) : null}
-        </div>
-      )}
+        ) : null}
+      </div>
     </div>
   );
 }

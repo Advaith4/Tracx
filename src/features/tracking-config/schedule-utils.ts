@@ -111,6 +111,7 @@ export function getTodayScheduledTasks(
 ): TodayScheduledTask[] {
   const { dayOfWeek, hhmm } = getLocalDayAndTime(timezone, referenceDate);
   const tasks: TodayScheduledTask[] = [];
+  const seenKeys = new Set<string>();
 
   for (const config of configs) {
     if (!config.enabled || !config.show_on_dashboard) {
@@ -128,6 +129,12 @@ export function getTodayScheduledTasks(
       const contextLabel = slot.postMealMinutes
         ? `${slot.context} · ${slot.postMealMinutes}m`
         : slot.context;
+
+      const dedupeKey = `${config.metric_type}:${measurementName}:${contextLabel}:${slot.time}`;
+      if (seenKeys.has(dedupeKey)) {
+        continue;
+      }
+      seenKeys.add(dedupeKey);
 
       tasks.push({
         id: `${config.id}:${slot.id}`,

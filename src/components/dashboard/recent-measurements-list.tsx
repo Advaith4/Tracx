@@ -28,7 +28,7 @@ export function RecentMeasurementsList({
       <div className="flex items-center justify-between">
         <h2
           id="recent-measurements-heading"
-          className="text-sm font-medium text-muted-foreground"
+          className="text-sm font-semibold tracking-tight text-foreground"
         >
           Recent Measurements
         </h2>
@@ -83,7 +83,7 @@ export function RecentMeasurementsList({
                   </span>
                 </div>
 
-                <span className="shrink-0 text-sm font-semibold text-foreground">
+                <span className="shrink-0 text-sm font-semibold text-foreground tabular-nums">
                   {record.value}
                 </span>
               </div>

@@ -9,6 +9,9 @@ const METRIC_SORT_ORDER: Record<string, number> = {
   custom: 3,
 };
 
+const BUILTIN_METRICS = new Set(["glucose", "blood_pressure", "weight"]);
+const seedInFlight = new Map<string, Promise<Tables<"tracking_configs">[]>>();
+
 export function sortTrackingConfigs(
   configs: Tables<"tracking_configs">[]
 ): Tables<"tracking_configs">[] {
@@ -19,6 +22,31 @@ export function sortTrackingConfigs(
     if (orderDiff !== 0) return orderDiff;
     return a.created_at.localeCompare(b.created_at);
   });
+}
+
+export function deduplicateTrackingConfigs(
+  configs: Tables<"tracking_configs">[]
+): {
+  unique: Tables<"tracking_configs">[];
+  duplicateIds: string[];
+} {
+  const sorted = sortTrackingConfigs(configs);
+  const seenBuiltin = new Set<string>();
+  const unique: Tables<"tracking_configs">[] = [];
+  const duplicateIds: string[] = [];
+
+  for (const config of sorted) {
+    if (BUILTIN_METRICS.has(config.metric_type)) {
+      if (seenBuiltin.has(config.metric_type)) {
+        duplicateIds.push(config.id);
+        continue;
+      }
+      seenBuiltin.add(config.metric_type);
+    }
+    unique.push(config);
+  }
+
+  return { unique, duplicateIds };
 }
 
 export async function ensureAndListTrackingConfigs(
@@ -35,22 +63,51 @@ export async function ensureAndListTrackingConfigs(
   }
 
   if (existing && existing.length > 0) {
-    return sortTrackingConfigs(existing);
+    const { unique, duplicateIds } = deduplicateTrackingConfigs(existing);
+    if (duplicateIds.length > 0) {
+      await supabase
+        .from("tracking_configs")
+        .delete()
+        .eq("user_id", userId)
+        .in("id", duplicateIds);
+    }
+    return unique;
   }
 
-  const seedsToInsert = DEFAULT_TRACKING_SEEDS.map((seed) => ({
-    ...seed,
-    user_id: userId,
-  }));
-
-  const { data: inserted, error: insertError } = await supabase
-    .from("tracking_configs")
-    .insert(seedsToInsert)
-    .select("*");
-
-  if (insertError) {
-    throw new Error(insertError.message);
+  const inflight = seedInFlight.get(userId);
+  if (inflight) {
+    return inflight;
   }
 
-  return sortTrackingConfigs(inserted ?? []);
+  const seedPromise = (async () => {
+    const { data: recheck } = await supabase
+      .from("tracking_configs")
+      .select("*")
+      .eq("user_id", userId);
+
+    if (recheck && recheck.length > 0) {
+      return deduplicateTrackingConfigs(recheck).unique;
+    }
+
+    const seedsToInsert = DEFAULT_TRACKING_SEEDS.map((seed) => ({
+      ...seed,
+      user_id: userId,
+    }));
+
+    const { data: inserted, error: insertError } = await supabase
+      .from("tracking_configs")
+      .insert(seedsToInsert)
+      .select("*");
+
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+
+    return deduplicateTrackingConfigs(inserted ?? []).unique;
+  })().finally(() => {
+    seedInFlight.delete(userId);
+  });
+
+  seedInFlight.set(userId, seedPromise);
+  return seedPromise;
 }

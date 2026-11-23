@@ -7,6 +7,7 @@ import {
   formatTime12h,
   getTodayScheduledTasks,
 } from "@/features/tracking-config/schedule-utils";
+import { deduplicateTrackingConfigs } from "@/features/tracking-config/service";
 import type { Tables } from "@/types/database";
 
 const BASE_TIMESTAMP = "2026-11-22T00:00:00.000Z";
@@ -165,5 +166,47 @@ describe("schedule-utils", () => {
       scheduledTime: "9:30 AM",
       status: "upcoming",
     });
+  });
+
+  it("deduplicates duplicate built-in starter configs and duplicate scheduled slots", () => {
+    const slot = {
+      id: "fasting",
+      context: "Fasting",
+      time: "07:30",
+      daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+    };
+
+    const duplicatedConfigs = [
+      makeConfig({
+        id: "cfg-glucose-1",
+        metric_type: "glucose",
+        created_at: "2026-11-22T00:00:00.000Z",
+        schedule: { contexts: ["Fasting"], slots: [slot] },
+      }),
+      makeConfig({
+        id: "cfg-glucose-2",
+        metric_type: "glucose",
+        created_at: "2026-11-22T00:00:01.000Z",
+        schedule: { contexts: ["Fasting"], slots: [slot] },
+      }),
+      makeConfig({
+        id: "cfg-custom-1",
+        metric_type: "custom",
+        custom_label: "Heart Rate",
+        created_at: "2026-11-22T00:00:02.000Z",
+        schedule: { contexts: ["Daily"], slots: [{ ...slot, id: "hr", time: "09:00", context: "Daily" }] },
+      }),
+    ];
+
+    const { unique, duplicateIds } = deduplicateTrackingConfigs(duplicatedConfigs);
+    expect(unique).toHaveLength(2);
+    expect(duplicateIds).toEqual(["cfg-glucose-2"]);
+
+    const tasks = getTodayScheduledTasks(
+      duplicatedConfigs,
+      "UTC",
+      new Date("2026-11-23T06:00:00.000Z")
+    );
+    expect(tasks).toHaveLength(2);
   });
 });

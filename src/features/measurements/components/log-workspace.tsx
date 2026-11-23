@@ -10,10 +10,8 @@ import {
   Pencil,
   Scale,
   SlidersHorizontal,
-  Sparkles,
   Trash2,
 } from "lucide-react";
-import Link from "next/link";
 import { EmptyState } from "@/components/layout/feedback-states";
 import { Button } from "@/components/ui/button";
 import {
@@ -164,162 +162,170 @@ export function LogWorkspace({
 
   return (
     <div className="flex flex-col gap-6">
-      <VoiceLoggerPanel
-        timezone={timezone}
-        autoFocusVoice={autoFocusVoice}
-        onSaved={handleSaved}
-      />
-
-      <OfflineDraftQueueBanner userId={userId} onSynced={handleSaved} />
-
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-muted-foreground">
-          Or enter a measurement manually
-        </span>
-        <Link
-          href="/assistant"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-        >
-          <Sparkles className="size-3.5" aria-hidden="true" />
-          Ask AI Data Assistant
-        </Link>
-      </div>
-
-      <div
-        role="tablist"
-        aria-label="Measurement type"
-        className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap"
-      >
-        {metricTabs.map((tab) => {
-          const Icon = tab.icon;
-          const active = activeMetric === tab.type;
-          return (
-            <Button
-              key={tab.type}
-              role="tab"
-              aria-selected={active}
-              size="lg"
-              variant={active ? "default" : "outline"}
-              type="button"
-              onClick={() => setActiveMetric(tab.type)}
-              className="justify-center"
-            >
-              <Icon className="size-4" aria-hidden="true" />
-              <span>{tab.label}</span>
-            </Button>
-          );
-        })}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {activeMetric === "glucose"
-              ? "Record Blood Glucose"
-              : activeMetric === "blood_pressure"
-                ? "Record Blood Pressure"
-                : activeMetric === "weight"
-                  ? "Record Weight"
-                  : "Record Custom Measurement"}
-          </CardTitle>
-          <CardDescription>
-            You can adjust the date and time to log missed readings from earlier
-            today or past days.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {activeMetric === "glucose" ? (
-            <GlucoseForm
-              userId={userId}
-              defaultUnit={glucoseUnit}
-              contextHint={contextHint}
-              onSaved={handleSaved}
-            />
-          ) : activeMetric === "blood_pressure" ? (
-            <BloodPressureForm userId={userId} onSaved={handleSaved} />
-          ) : activeMetric === "weight" ? (
-            <WeightForm
-              userId={userId}
-              defaultUnit={weightUnit}
-              onSaved={handleSaved}
-            />
-          ) : (
-            <CustomMetricForm
-              userId={userId}
-              customConfigs={customConfigs}
-              onSaved={handleSaved}
-            />
-          )}
-        </CardContent>
-      </Card>
-
-      <section aria-labelledby="recent-entries-heading" className="flex flex-col gap-3">
-        <h2
-          id="recent-entries-heading"
-          className="text-sm font-medium text-muted-foreground"
-        >
-          Recent Entries
-        </h2>
-
-        {measurements.length === 0 ? (
-          <EmptyState
-            title="No measurements recorded yet"
-            description="Save your first reading above and it will appear here and on your Home dashboard."
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+        <div className="flex flex-col gap-5 lg:col-span-7">
+          <VoiceLoggerPanel
+            timezone={timezone}
+            autoFocusVoice={autoFocusVoice}
+            onSaved={handleSaved}
           />
-        ) : (
-          <Card size="sm">
-            <CardContent className="divide-y divide-border p-0">
-              {measurements.map((item) => (
-                <div
-                  key={`${item.metricType}-${item.id}`}
-                  className="flex items-center justify-between gap-3 px-4 py-3"
-                >
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="text-sm font-semibold text-foreground">
-                        {item.displayValue}
-                      </span>
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {item.metricLabel}
-                      </span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {item.contextLabel} · {item.measuredAtLabel}
-                    </span>
-                    {item.notes ? (
-                      <span className="truncate text-xs italic text-muted-foreground">
-                        &ldquo;{item.notes}&rdquo;
-                      </span>
-                    ) : null}
-                  </div>
 
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      type="button"
-                      aria-label={`Edit ${item.metricLabel}`}
-                      onClick={() => setEditingItem(item)}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Manual Entry
+              </span>
+            </div>
+
+            <div
+              role="tablist"
+              aria-label="Measurement type"
+              className="grid grid-cols-2 gap-1 rounded-xl border border-border/80 bg-muted/50 p-1 sm:flex sm:flex-wrap"
+            >
+              {metricTabs.map((tab) => {
+                const Icon = tab.icon;
+                const active = activeMetric === tab.type;
+                return (
+                  <button
+                    key={tab.type}
+                    role="tab"
+                    aria-selected={active}
+                    type="button"
+                    onClick={() => setActiveMetric(tab.type)}
+                    className={`inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                      active
+                        ? "bg-card text-foreground shadow-2xs ring-1 ring-border/80"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <Card className="border-border/80">
+              <CardHeader>
+                <CardTitle>
+                  {activeMetric === "glucose"
+                    ? "Record Blood Glucose"
+                    : activeMetric === "blood_pressure"
+                      ? "Record Blood Pressure"
+                      : activeMetric === "weight"
+                        ? "Record Weight"
+                        : "Record Custom Measurement"}
+                </CardTitle>
+                <CardDescription>
+                  Adjust the date and time if you&apos;re logging a reading from
+                  earlier today or a past day.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {activeMetric === "glucose" ? (
+                  <GlucoseForm
+                    userId={userId}
+                    defaultUnit={glucoseUnit}
+                    contextHint={contextHint}
+                    onSaved={handleSaved}
+                  />
+                ) : activeMetric === "blood_pressure" ? (
+                  <BloodPressureForm userId={userId} onSaved={handleSaved} />
+                ) : activeMetric === "weight" ? (
+                  <WeightForm
+                    userId={userId}
+                    defaultUnit={weightUnit}
+                    onSaved={handleSaved}
+                  />
+                ) : (
+                  <CustomMetricForm
+                    userId={userId}
+                    customConfigs={customConfigs}
+                    onSaved={handleSaved}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-5 lg:col-span-5">
+          <OfflineDraftQueueBanner userId={userId} onSynced={handleSaved} />
+
+          <section aria-labelledby="recent-entries-heading" className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h2
+                id="recent-entries-heading"
+                className="text-sm font-semibold tracking-tight text-foreground"
+              >
+                Recent Entries
+              </h2>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {measurements.length} shown
+              </span>
+            </div>
+
+            {measurements.length === 0 ? (
+              <EmptyState
+                title="No measurements recorded yet"
+                description="Save your first reading and it will appear here and on your Home dashboard."
+              />
+            ) : (
+              <Card size="sm" className="border-border/80">
+                <CardContent className="divide-y divide-border/70 p-0">
+                  {measurements.map((item) => (
+                    <div
+                      key={`${item.metricType}-${item.id}`}
+                      className="flex items-center justify-between gap-3 px-4 py-3"
                     >
-                      <Pencil className="size-4" aria-hidden="true" />
-                    </Button>
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      type="button"
-                      aria-label={`Delete ${item.metricLabel}`}
-                      onClick={() => setDeletingItem(item)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="size-4" aria-hidden="true" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-      </section>
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <div className="flex flex-wrap items-baseline gap-2">
+                          <span className="text-sm font-semibold text-foreground tabular-nums">
+                            {item.displayValue}
+                          </span>
+                          <span className="text-xs font-medium text-muted-foreground">
+                            {item.metricLabel}
+                          </span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {item.contextLabel} · {item.measuredAtLabel}
+                        </span>
+                        {item.notes ? (
+                          <span className="truncate text-xs italic text-muted-foreground">
+                            &ldquo;{item.notes}&rdquo;
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          type="button"
+                          aria-label={`Edit ${item.metricLabel}`}
+                          onClick={() => setEditingItem(item)}
+                        >
+                          <Pencil className="size-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          type="button"
+                          aria-label={`Delete ${item.metricLabel}`}
+                          onClick={() => setDeletingItem(item)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="size-4" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </section>
+        </div>
+      </div>
 
       <Dialog
         open={Boolean(editingItem)}

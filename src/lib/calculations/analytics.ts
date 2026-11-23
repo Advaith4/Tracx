@@ -63,6 +63,25 @@ export interface WeightPoint {
   unit: WeightUnit;
 }
 
+export interface CustomMetricPoint {
+  id: string;
+  measuredAt: string;
+  dateLabel: string;
+  fullLabel: string;
+  value: number;
+  unit: string;
+}
+
+export interface CustomMetricSeries {
+  configId: string;
+  label: string;
+  unit: string;
+  totalCount: number;
+  points: CustomMetricPoint[];
+  stats: NumericStats;
+  textEntriesCount: number;
+}
+
 export function roundToOneDecimal(num: number): number {
   return Math.round(num * 10) / 10;
 }
@@ -349,6 +368,84 @@ export function buildWeightAnalytics(
     points,
     stats,
   };
+}
+
+export function buildCustomMetricsAnalytics(
+  records: Tables<"custom_metric_records">[],
+  configs: Tables<"tracking_configs">[],
+  timezone: string
+): CustomMetricSeries[] {
+  const customConfigs = configs.filter((c) => c.metric_type === "custom");
+  const sortedAsc = [...records].sort((a, b) =>
+    a.measured_at.localeCompare(b.measured_at)
+  );
+
+  const byConfigId = new Map<string, Tables<"custom_metric_records">[]>();
+  for (const record of sortedAsc) {
+    const existing = byConfigId.get(record.metric_config_id) ?? [];
+    existing.push(record);
+    byConfigId.set(record.metric_config_id, existing);
+  }
+
+  const seenConfigIds = new Set<string>();
+  const seriesList: CustomMetricSeries[] = [];
+
+  for (const cfg of customConfigs) {
+    seenConfigIds.add(cfg.id);
+    const matching = byConfigId.get(cfg.id) ?? [];
+    if (!cfg.enabled && matching.length === 0) {
+      continue;
+    }
+
+    const numericRecords = matching.filter(
+      (r) => r.value_numeric !== null && Number.isFinite(Number(r.value_numeric))
+    );
+    const points: CustomMetricPoint[] = numericRecords.map((r) => ({
+      id: r.id,
+      measuredAt: r.measured_at,
+      dateLabel: formatShortChartDate(r.measured_at, timezone),
+      fullLabel: formatLocalDateTimeLabel(r.measured_at, timezone),
+      value: Number(r.value_numeric),
+      unit: r.unit ?? cfg.unit,
+    }));
+
+    seriesList.push({
+      configId: cfg.id,
+      label: cfg.custom_label?.trim() || "Custom Metric",
+      unit: cfg.unit,
+      totalCount: matching.length,
+      points,
+      stats: computeNumericStats(points.map((p) => p.value)),
+      textEntriesCount: matching.length - numericRecords.length,
+    });
+  }
+
+  for (const [configId, matching] of byConfigId.entries()) {
+    if (seenConfigIds.has(configId)) continue;
+    const numericRecords = matching.filter(
+      (r) => r.value_numeric !== null && Number.isFinite(Number(r.value_numeric))
+    );
+    const unit = matching[0]?.unit ?? "";
+    const points: CustomMetricPoint[] = numericRecords.map((r) => ({
+      id: r.id,
+      measuredAt: r.measured_at,
+      dateLabel: formatShortChartDate(r.measured_at, timezone),
+      fullLabel: formatLocalDateTimeLabel(r.measured_at, timezone),
+      value: Number(r.value_numeric),
+      unit: r.unit ?? unit,
+    }));
+    seriesList.push({
+      configId,
+      label: "Custom Metric",
+      unit,
+      totalCount: matching.length,
+      points,
+      stats: computeNumericStats(points.map((p) => p.value)),
+      textEntriesCount: matching.length - numericRecords.length,
+    });
+  }
+
+  return seriesList;
 }
 
 export function computeRangeCompletionSummary(params: {

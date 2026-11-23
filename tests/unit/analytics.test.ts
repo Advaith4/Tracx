@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBloodPressureAnalytics,
+  buildCustomMetricsAnalytics,
   buildGlucoseAnalytics,
   buildWeightAnalytics,
   computeNumericStats,
@@ -146,5 +147,61 @@ describe("analytics calculations", () => {
     const weight = buildWeightAnalytics(records, "UTC", "kg");
     expect(weight.stats.change).toBe(0.5);
     expect(weight.stats.latest).toBe(64.5);
+  });
+
+  it("aggregates numeric custom metrics and counts text observations separately", () => {
+    const configs: Tables<"tracking_configs">[] = [
+      {
+        id: "cfg-hr",
+        user_id: "u1",
+        metric_type: "custom",
+        custom_label: "Heart Rate",
+        enabled: true,
+        schedule: { contexts: [], slots: [] },
+        provider_targets: null,
+        unit: "bpm",
+        show_on_dashboard: true,
+        include_in_reports: true,
+        created_at: "2026-11-20T00:00:00.000Z",
+        updated_at: "2026-11-20T00:00:00.000Z",
+      },
+    ];
+    const records: Tables<"custom_metric_records">[] = [
+      {
+        id: "c1",
+        user_id: "u1",
+        metric_config_id: "cfg-hr",
+        value_numeric: 72,
+        value_text: null,
+        unit: "bpm",
+        measured_at: "2026-11-21T09:00:00.000Z",
+        entered_at: "2026-11-21T09:01:00.000Z",
+        notes: null,
+        source: "manual",
+        created_at: "2026-11-21T09:01:00.000Z",
+        updated_at: "2026-11-21T09:01:00.000Z",
+      },
+      {
+        id: "c2",
+        user_id: "u1",
+        metric_config_id: "cfg-hr",
+        value_numeric: 76,
+        value_text: null,
+        unit: "bpm",
+        measured_at: "2026-11-22T09:00:00.000Z",
+        entered_at: "2026-11-22T09:01:00.000Z",
+        notes: null,
+        source: "manual",
+        created_at: "2026-11-22T09:01:00.000Z",
+        updated_at: "2026-11-22T09:01:00.000Z",
+      },
+    ];
+
+    const series = buildCustomMetricsAnalytics(records, configs, "UTC");
+    expect(series).toHaveLength(1);
+    expect(series[0].label).toBe("Heart Rate");
+    expect(series[0].stats.average).toBe(74);
+    expect(series[0].stats.latest).toBe(76);
+    expect(series[0].points).toHaveLength(2);
   });
 });

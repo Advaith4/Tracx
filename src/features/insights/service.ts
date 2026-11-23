@@ -6,6 +6,7 @@ import { ensureAndListTrackingConfigs } from "@/features/tracking-config/service
 import type { UnifiedMeasurement } from "@/features/measurements/service";
 import {
   buildBloodPressureAnalytics,
+  buildCustomMetricsAnalytics,
   buildGlucoseAnalytics,
   buildWeightAnalytics,
   computeRangeCompletionSummary,
@@ -37,6 +38,7 @@ export interface InsightsPayload {
   glucose: ReturnType<typeof buildGlucoseAnalytics>;
   bloodPressure: ReturnType<typeof buildBloodPressureAnalytics>;
   weight: ReturnType<typeof buildWeightAnalytics>;
+  customMetrics: ReturnType<typeof buildCustomMetricsAnalytics>;
   completion: ReturnType<typeof computeRangeCompletionSummary>;
   history: UnifiedMeasurement[];
   configs: Tables<"tracking_configs">[];
@@ -230,6 +232,11 @@ export async function getInsightsData(
   );
   const bloodPressure = buildBloodPressureAnalytics(bpRecords, timezone);
   const weight = buildWeightAnalytics(weightRecords, timezone, weightUnit);
+  const customMetrics = buildCustomMetricsAnalytics(
+    customRecords,
+    configs,
+    timezone
+  );
   const completion = computeRangeCompletionSummary({
     configs,
     skipsCount: skips.length,
@@ -247,6 +254,7 @@ export async function getInsightsData(
     glucose,
     bloodPressure,
     weight,
+    customMetrics,
     completion,
     history: filteredHistory,
     configs,

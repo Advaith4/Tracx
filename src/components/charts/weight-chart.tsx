@@ -30,8 +30,8 @@ function WeightTooltip({
   const row = payload[0].payload;
 
   return (
-    <div className="rounded-xl border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
-      <p className="font-semibold">
+    <div className="rounded-xl bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md ring-1 ring-border/70">
+      <p className="font-semibold tabular-nums">
         {row.value} {row.unit}
       </p>
       <p className="text-[11px] text-muted-foreground">{row.fullLabel}</p>
@@ -51,13 +51,17 @@ export function WeightChart({ points, unit }: WeightChartProps) {
   }
 
   return (
-    <div className="h-64 w-full">
+    <div className="h-72 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={points}
           margin={{ top: 10, right: 12, left: -12, bottom: 4 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <CartesianGrid
+            vertical={false}
+            strokeDasharray="3 3"
+            stroke="var(--border)"
+          />
           <XAxis
             dataKey="dateLabel"
             tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}

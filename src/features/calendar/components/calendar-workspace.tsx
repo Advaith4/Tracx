@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -58,6 +58,10 @@ import {
 } from "@/lib/notifications/reminder-logic";
 import { cn } from "@/lib/utils";
 import type { NotificationChannel } from "@/types/database";
+
+const emptySubscribe = () => () => {};
+const getServerNotificationPermission =
+  (): BrowserNotificationPermissionState => "default";
 
 const WEEKDAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 const WEEKDAY_SHORT = ["S", "M", "T", "W", "T", "F", "S"] as const;
@@ -145,10 +149,14 @@ export function CalendarWorkspace({
 
   const [currentMonth, setCurrentMonth] = useState(initialData.month);
   const [selectedDate, setSelectedDate] = useState(resolvedInitialDate);
-  const [permissionState, setPermissionState] =
-    useState<BrowserNotificationPermissionState>(() =>
-      getBrowserNotificationPermission()
-    );
+  const browserPermission = useSyncExternalStore(
+    emptySubscribe,
+    getBrowserNotificationPermission,
+    getServerNotificationPermission
+  );
+  const [permissionOverride, setPermissionOverride] =
+    useState<BrowserNotificationPermissionState | null>(null);
+  const permissionState = permissionOverride ?? browserPermission;
 
   // Reminder quick-add drawer/panel inside selected date
   const [showAddReminder, setShowAddReminder] = useState(false);
@@ -157,12 +165,7 @@ export function CalendarWorkspace({
   );
   const [remCategory, setRemCategory] = useState<ReminderCategory>("glucose");
   const [remLabel, setRemLabel] = useState("");
-  const [remTime, setRemTime] = useState(() =>
-    getDefaultUpcomingTime(
-      resolvedInitialDate === initialData.todayDate,
-      initialData.timezone
-    )
-  );
+  const [remTime, setRemTime] = useState("09:00");
   const [remChannel, setRemChannel] = useState<NotificationChannel>("in_app");
   const [remDaysOfWeek, setRemDaysOfWeek] = useState<number[]>([
     0, 1, 2, 3, 4, 5, 6,
@@ -248,7 +251,7 @@ export function CalendarWorkspace({
 
   async function handleEnableAlerts() {
     const perm = await requestBrowserNotificationPermission();
-    setPermissionState(perm);
+    setPermissionOverride(perm);
     if (perm === "granted") {
       playGentleReminderChime();
       await showBrowserReminderNotification({

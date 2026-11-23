@@ -45,7 +45,10 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
-const SHELL_CACHE = "tracx-shell-v1";
+const SHELL_CACHE = "tracx-shell-v2";
+const IS_LOCALHOST =
+  self.location.hostname === "localhost" ||
+  self.location.hostname === "127.0.0.1";
 const PRECACHE_URLS = [
   "/offline",
   "/manifest.webmanifest",
@@ -88,6 +91,11 @@ self.addEventListener("fetch", (event) => {
 
   // Never cache API endpoints, authentication callbacks, or dynamic user data
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/")) {
+    return;
+  }
+
+  // Never cache /_next/static chunks on localhost (next dev reuses chunk URLs across edits)
+  if (IS_LOCALHOST && url.pathname.startsWith("/_next/static/")) {
     return;
   }
 

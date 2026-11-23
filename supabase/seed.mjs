@@ -497,6 +497,26 @@ async function main() {
   const weekPulse = bpPairs.slice(0, 7).map((p) => p[2]).reverse();
   const weekWeights = weightSeries.slice(0, 7).reverse();
 
+  const weekGlucoseAsc = glucoseRows
+    .filter((r) => getLocalDateStr(new Date(r.measured_at), effectiveTz) >= periodStart)
+    .sort((a, b) => a.measured_at.localeCompare(b.measured_at));
+  const weekBpAsc = bpRows
+    .filter((r) => getLocalDateStr(new Date(r.measured_at), effectiveTz) >= periodStart)
+    .sort((a, b) => a.measured_at.localeCompare(b.measured_at));
+  const weekWeightAsc = weightRows
+    .filter((r) => getLocalDateStr(new Date(r.measured_at), effectiveTz) >= periodStart)
+    .sort((a, b) => a.measured_at.localeCompare(b.measured_at));
+  const weekCustomAsc = customRows
+    .filter((r) => getLocalDateStr(new Date(r.measured_at), effectiveTz) >= periodStart)
+    .sort((a, b) => a.measured_at.localeCompare(b.measured_at));
+
+  const shortChartDate = (iso) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: effectiveTz,
+      month: "short",
+      day: "numeric",
+    }).format(new Date(iso));
+
   const reportStats = {
     periodStart,
     periodEnd,
@@ -524,6 +544,16 @@ async function main() {
         { key: "beforeDinner", label: "Before Dinner", stats: emptyStats },
         { key: "afterDinner", label: "After Dinner", stats: computeStats(weekDinner) },
       ],
+      points: weekGlucoseAsc.map((r, idx) => ({
+        id: `seed-g-${idx}`,
+        measuredAt: r.measured_at,
+        dateLabel: shortChartDate(r.measured_at),
+        fullLabel: `${shortChartDate(r.measured_at)}`,
+        value: r.value,
+        unit: r.unit,
+        contextGroup: r.meal_context === "fasting" ? "fasting" : r.timing === "before" ? "before" : "after",
+        contextLabel: r.meal_context === "fasting" ? "Fasting" : `After ${r.meal_context}`,
+      })),
     },
     bloodPressure: {
       count: weekSys.length,
@@ -534,6 +564,15 @@ async function main() {
         measuredAtLabel: r.measured_at.slice(0, 10),
         value: `${r.systolic}/${r.diastolic} mmHg`,
       })),
+      points: weekBpAsc.map((r, idx) => ({
+        id: `seed-bp-${idx}`,
+        measuredAt: r.measured_at,
+        dateLabel: shortChartDate(r.measured_at),
+        fullLabel: shortChartDate(r.measured_at),
+        systolic: r.systolic,
+        diastolic: r.diastolic,
+        pulse: r.pulse,
+      })),
     },
     weight: {
       unit: "kg",
@@ -542,7 +581,35 @@ async function main() {
         measuredAtLabel: r.measured_at.slice(0, 10),
         value: `${r.value} kg`,
       })),
+      points: weekWeightAsc.map((r, idx) => ({
+        id: `seed-w-${idx}`,
+        measuredAt: r.measured_at,
+        dateLabel: shortChartDate(r.measured_at),
+        fullLabel: shortChartDate(r.measured_at),
+        value: r.value,
+        unit: "kg",
+      })),
     },
+    customMetrics: heartRateConfig
+      ? [
+          {
+            configId: heartRateConfig.id,
+            label: heartRateConfig.custom_label || "Heart Rate",
+            unit: heartRateConfig.unit || "bpm",
+            totalCount: weekCustomAsc.length,
+            textEntriesCount: 0,
+            stats: computeStats(weekCustomAsc.map((c) => c.value_numeric)),
+            points: weekCustomAsc.map((r, idx) => ({
+              id: `seed-c-${idx}`,
+              measuredAt: r.measured_at,
+              dateLabel: shortChartDate(r.measured_at),
+              fullLabel: shortChartDate(r.measured_at),
+              value: r.value_numeric,
+              unit: r.unit || "bpm",
+            })),
+          },
+        ]
+      : [],
     notes: noteOffsets
       .filter(([daysAgo]) => daysAgo <= 6)
       .map(([daysAgo, content]) => ({

@@ -92,7 +92,10 @@ export async function sendReminderEmail(params: {
     });
 
     if (error) {
-      return { ok: false, error: "Email provider returned an error." };
+      return {
+        ok: false,
+        error: `Email provider error: ${error.message || "Check RESEND_API_KEY configuration."}`,
+      };
     }
     return { ok: true };
   } catch {

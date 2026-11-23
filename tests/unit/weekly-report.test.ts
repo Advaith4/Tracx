@@ -3,6 +3,7 @@ import {
   buildDeterministicFallbackNarrative,
   computeWeeklyReportStatistics,
 } from "@/lib/calculations/weekly-report";
+import { buildWeeklyReportPdf } from "@/lib/pdf/weekly-report-pdf";
 import type { Tables } from "@/types/database";
 
 describe("weekly-report calculations", () => {
@@ -104,5 +105,15 @@ describe("weekly-report calculations", () => {
     const fallback = buildDeterministicFallbackNarrative(stats);
     expect(fallback.observations.length).toBeGreaterThanOrEqual(2);
     expect(fallback.providerQuestions.length).toBeGreaterThanOrEqual(2);
+
+    expect(stats.glucose.points).toHaveLength(2);
+    const pdfBytes = buildWeeklyReportPdf({
+      userName: "Test User",
+      generatedAt: "2026-11-23T08:00:00.000Z",
+      stats,
+      narrative: fallback,
+    });
+    expect(pdfBytes.byteLength).toBeGreaterThan(500);
+    expect(new TextDecoder().decode(pdfBytes.slice(0, 5))).toBe("%PDF-");
   });
 });

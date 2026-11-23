@@ -67,12 +67,22 @@ export async function generateWeeklyReportEmail(params: {
     process.env.RESEND_FROM_EMAIL?.trim() || "Tracx <onboarding@resend.dev>";
 
   const { report } = params;
+  const glucoseRows = report.statistics.glucose.contexts.filter(
+    (c) => c.stats.count > 0
+  );
+
   const lines = [
     `Tracx Weekly Health Report (${report.periodStart} to ${report.periodEnd})`,
     "",
     report.narrative.summaryParagraph,
     "",
     `Overview: ${report.statistics.overview.totalRecorded} recorded, ${report.statistics.overview.totalSkipped} skipped, ${report.statistics.overview.missingCount} missing.`,
+    "",
+    "Blood Glucose Summary:",
+    ...glucoseRows.map(
+      (c) =>
+        `- ${c.label}: ${c.stats.count} readings, avg ${c.stats.average} ${report.statistics.glucose.unit} (${c.stats.min}-${c.stats.max})`
+    ),
     "",
     "Observations:",
     ...report.narrative.observations.map((o) => `- ${o}`),
@@ -83,6 +93,85 @@ export async function generateWeeklyReportEmail(params: {
     "Note: This report is a personal tracking summary and not a medical diagnosis.",
   ];
 
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 640px; margin: 0 auto; color: #1f2937; line-height: 1.5;">
+      <h2 style="color: #205650; margin-bottom: 4px;">Tracx Weekly Health Report</h2>
+      <p style="color: #6b7280; font-size: 13px; margin-top: 0;">Period: ${report.periodStart} to ${report.periodEnd}</p>
+      <p style="font-size: 14px;">${report.narrative.summaryParagraph}</p>
+
+      <h3 style="color: #205650; font-size: 14px; margin-top: 20px;">Blood Glucose Summary (${report.statistics.glucose.unit})</h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background: #ebf4f2; text-align: left;">
+            <th style="padding: 8px;">Context</th>
+            <th style="padding: 8px; text-align: right;">Readings</th>
+            <th style="padding: 8px; text-align: right;">Average</th>
+            <th style="padding: 8px; text-align: right;">Range</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${glucoseRows
+            .map(
+              (c) => `
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 8px;">${c.label}</td>
+              <td style="padding: 8px; text-align: right;">${c.stats.count}</td>
+              <td style="padding: 8px; text-align: right; font-weight: 600;">${c.stats.average}</td>
+              <td style="padding: 8px; text-align: right;">${c.stats.min}–${c.stats.max}</td>
+            </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+
+      <h3 style="color: #205650; font-size: 14px; margin-top: 20px;">Vitals Summary</h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background: #ebf4f2; text-align: left;">
+            <th style="padding: 8px;">Metric</th>
+            <th style="padding: 8px; text-align: right;">Readings</th>
+            <th style="padding: 8px; text-align: right;">Average</th>
+            <th style="padding: 8px; text-align: right;">Latest</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 8px;">Blood Pressure</td>
+            <td style="padding: 8px; text-align: right;">${report.statistics.bloodPressure.count}</td>
+            <td style="padding: 8px; text-align: right; font-weight: 600;">${
+              report.statistics.bloodPressure.count > 0
+                ? `${report.statistics.bloodPressure.systolic.average}/${report.statistics.bloodPressure.diastolic.average} mmHg`
+                : "--"
+            }</td>
+            <td style="padding: 8px; text-align: right;">${
+              report.statistics.bloodPressure.systolic.latest !== null
+                ? `${report.statistics.bloodPressure.systolic.latest}/${report.statistics.bloodPressure.diastolic.latest} mmHg`
+                : "--"
+            }</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 8px;">Weight</td>
+            <td style="padding: 8px; text-align: right;">${report.statistics.weight.stats.count}</td>
+            <td style="padding: 8px; text-align: right; font-weight: 600;">${
+              report.statistics.weight.stats.average !== null
+                ? `${report.statistics.weight.stats.average} ${report.statistics.weight.unit}`
+                : "--"
+            }</td>
+            <td style="padding: 8px; text-align: right;">${
+              report.statistics.weight.stats.latest !== null
+                ? `${report.statistics.weight.stats.latest} ${report.statistics.weight.unit}`
+                : "--"
+            }</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">
+        Note: This report is a personal tracking summary and not a medical diagnosis. Open Tracx to view charts or download the full PDF.
+      </p>
+    </div>
+  `;
+
   try {
     const resend = new Resend(apiKey);
     const { error } = await resend.emails.send({
@@ -90,13 +179,23 @@ export async function generateWeeklyReportEmail(params: {
       to: params.to,
       subject: `Your Tracx Weekly Health Report (${report.periodStart} – ${report.periodEnd})`,
       text: lines.join("\n"),
+      html,
     });
     if (error) {
-      return { sent: false, error: "Email provider returned an error." };
+      return {
+        sent: false,
+        error: `Email provider error: ${error.message || "Check RESEND_API_KEY and sender configuration."}`,
+      };
     }
     return { sent: true };
-  } catch {
-    return { sent: false, error: "Couldn't send report email." };
+  } catch (err) {
+    return {
+      sent: false,
+      error:
+        err instanceof Error
+          ? `Couldn't send report email: ${err.message}`
+          : "Couldn't send report email.",
+    };
   }
 }
 

@@ -1,10 +1,18 @@
 import {
+  buildBloodPressureAnalytics,
+  buildCustomMetricsAnalytics,
+  buildGlucoseAnalytics,
+  buildWeightAnalytics,
   computeNumericStats,
   computeRangeCompletionSummary,
   convertGlucoseValue,
   convertWeightValue,
   isIsoInLocalDateRange,
+  type BloodPressurePoint,
+  type CustomMetricSeries,
+  type GlucosePoint,
   type NumericStats,
+  type WeightPoint,
 } from "@/lib/calculations/analytics";
 import {
   formatLocalDateTimeLabel,
@@ -42,6 +50,7 @@ export interface WeeklyReportStatistics {
     unit: string;
     totalCount: number;
     contexts: GlucoseContextBreakdown[];
+    points?: GlucosePoint[];
   };
   bloodPressure: {
     count: number;
@@ -49,12 +58,15 @@ export interface WeeklyReportStatistics {
     diastolic: NumericStats;
     pulse: NumericStats;
     readings: Array<{ measuredAtLabel: string; value: string }>;
+    points?: BloodPressurePoint[];
   };
   weight: {
     unit: WeightUnit;
     stats: NumericStats;
     readings: Array<{ measuredAtLabel: string; value: string }>;
+    points?: WeightPoint[];
   };
+  customMetrics?: CustomMetricSeries[];
   notes: Array<{ noteDate: string; content: string }>;
   dataLimitations: string[];
 }
@@ -218,6 +230,20 @@ export function computeWeeklyReportStatistics(params: {
     "This report summarizes user-entered measurements only and does not provide medical diagnosis or targets."
   );
 
+  const glucoseAnalytics = buildGlucoseAnalytics(
+    glucose,
+    tz,
+    glucoseUnit,
+    "all"
+  );
+  const bpAnalytics = buildBloodPressureAnalytics(bp, tz);
+  const weightAnalytics = buildWeightAnalytics(weight, tz, weightUnit);
+  const customAnalytics = buildCustomMetricsAnalytics(
+    custom,
+    params.configs.filter((c) => c.include_in_reports),
+    tz
+  );
+
   return {
     periodStart,
     periodEnd,
@@ -233,6 +259,7 @@ export function computeWeeklyReportStatistics(params: {
       unit: glucoseUnit,
       totalCount: glucose.length,
       contexts,
+      points: glucoseAnalytics.points,
     },
     bloodPressure: {
       count: bp.length,
@@ -247,6 +274,7 @@ export function computeWeeklyReportStatistics(params: {
           ? `${b.systolic}/${b.diastolic} mmHg (Pulse ${b.pulse})`
           : `${b.systolic}/${b.diastolic} mmHg`,
       })),
+      points: bpAnalytics.points,
     },
     weight: {
       unit: weightUnit,
@@ -255,7 +283,9 @@ export function computeWeeklyReportStatistics(params: {
         measuredAtLabel: formatLocalDateTimeLabel(w.measured_at, tz),
         value: `${convertWeightValue(Number(w.value), w.unit, weightUnit)} ${weightUnit}`,
       })),
+      points: weightAnalytics.points,
     },
+    customMetrics: customAnalytics,
     notes: params.dailyNotes
       .filter((n) => n.note_date >= periodStart && n.note_date <= periodEnd)
       .sort((a, b) => a.note_date.localeCompare(b.note_date))

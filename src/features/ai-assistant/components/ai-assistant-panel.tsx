@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, RotateCcw, Sparkles } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { ArrowUp, Check, RotateCcw, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,6 +12,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  invalidateAllHealthQueries,
+  saveExtractedMeasurements,
+} from "@/features/measurements/save-extracted";
+import type {
+  ExtractedMeasurementItem,
+  ExtractedMeasurementResponse,
+} from "@/lib/ai/schemas";
 import { cn } from "@/lib/utils";
 
 interface AssistantMessage {
@@ -17,12 +27,47 @@ interface AssistantMessage {
   role: "user" | "assistant";
   text: string;
   limitations?: string;
+  pendingRecords?: ExtractedMeasurementItem[];
+  savedStatus?: "pending" | "saved" | "discarded";
+}
+
+function formatExtractedSummary(item: ExtractedMeasurementItem): string {
+  if (item.kind === "glucose") {
+    const ctx =
+      item.meal_context === "fasting"
+        ? "Fasting"
+        : `${item.timing !== "unknown" ? `${item.timing} ` : ""}${item.meal_context}`;
+    return `Blood Glucose: ${item.value} ${item.unit} (${ctx})`;
+  }
+  if (item.kind === "blood_pressure") {
+    return `Blood Pressure: ${item.systolic}/${item.diastolic} mmHg${item.pulse ? ` · Pulse ${item.pulse}` : ""}`;
+  }
+  if (item.kind === "weight") {
+    return `Weight: ${item.value} ${item.unit}`;
+  }
+  return `Daily Note (${item.note_date}): "${item.content}"`;
+}
+
+function looksLikeMeasurementEntry(text: string): boolean {
+  const trimmed = text.trim();
+  const lower = trimmed.toLowerCase();
+  if (trimmed.endsWith("?")) return false;
+  if (/^(what|when|where|how|why|show|list|summarize|give|tell)\b/i.test(lower)) {
+    return false;
+  }
+  const hasExplicitLogVerb = /^(log|record|save|add|enter)\b/i.test(lower);
+  const hasMeasurementSignal =
+    /\b(\d{2,3}\s*\/\s*\d{2,3}|glucose|sugar|fasting|breakfast|lunch|dinner|bp|blood\s*pressure|weight|kg|lb|lbs|mg\/dl|mmol)\b/i.test(
+      lower
+    ) && /\d/.test(lower);
+
+  return hasExplicitLogVerb || hasMeasurementSignal;
 }
 
 const SUGGESTED_QUESTIONS = [
   "What do I still need to record today?",
   "What was my fasting sugar yesterday?",
-  "Summarize my records for the last seven days.",
+  "Log my fasting sugar 92",
   "Show me my blood pressure history.",
 ];
 
@@ -37,6 +82,7 @@ interface AiAssistantPanelProps {
 }
 
 export function AiAssistantPanel({ compact = false }: AiAssistantPanelProps) {
+  const queryClient = useQueryClient();
   const nextIdRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [question, setQuestion] = useState("");
@@ -44,6 +90,7 @@ export function AiAssistantPanel({ compact = false }: AiAssistantPanelProps) {
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [savingMsgId, setSavingMsgId] = useState<string | null>(null);
   const [thinkingStep, setThinkingStep] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -82,6 +129,55 @@ export function AiAssistantPanel({ compact = false }: AiAssistantPanelProps) {
     setIsThinking(true);
 
     try {
+      if (looksLikeMeasurementEntry(trimmed)) {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+        const extractRes = await fetch("/api/ai/extract-measurement", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: trimmed,
+            timezone: tz,
+            localNowIso: new Date().toISOString(),
+          }),
+        });
+        if (extractRes.ok) {
+          const extractJson = await extractRes.json().catch(() => null);
+          const extracted = extractJson?.data as
+            | ExtractedMeasurementResponse
+            | undefined;
+
+          if (extracted && !extracted.needs_clarification && extracted.records.length > 0) {
+            nextIdRef.current += 1;
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `assistant-${nextIdRef.current}`,
+                role: "assistant",
+                text: `I extracted ${extracted.records.length} reading${extracted.records.length === 1 ? "" : "s"}. Confirm below to save it across your Dashboard, Calendar, Insights, and Excel Sheet:`,
+                pendingRecords: extracted.records,
+                savedStatus: "pending",
+              },
+            ]);
+            setIsThinking(false);
+            return;
+          }
+
+          if (extracted?.needs_clarification && extracted.clarification_question) {
+            nextIdRef.current += 1;
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `assistant-${nextIdRef.current}`,
+                role: "assistant",
+                text: extracted.clarification_question!,
+              },
+            ]);
+            setIsThinking(false);
+            return;
+          }
+        }
+      }
+
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -175,6 +271,45 @@ export function AiAssistantPanel({ compact = false }: AiAssistantPanelProps) {
       setIsThinking(false);
       setIsStreaming(false);
     }
+  }
+
+  async function handleConfirmPending(
+    messageId: string,
+    records: ExtractedMeasurementItem[]
+  ) {
+    setSavingMsgId(messageId);
+    try {
+      await saveExtractedMeasurements({ records, source: "voice" });
+      invalidateAllHealthQueries(queryClient);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                savedStatus: "saved",
+                text: `Saved ${records.length} reading${records.length === 1 ? "" : "s"}! Synced across your Home dashboard, Calendar, Insights, Reports, and Excel Sheet.`,
+              }
+            : m
+        )
+      );
+      toast.success("Logged & synced everywhere");
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Couldn't save reading."
+      );
+    } finally {
+      setSavingMsgId(null);
+    }
+  }
+
+  function handleDiscardPending(messageId: string) {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? { ...m, savedStatus: "discarded", text: "Discarded — nothing saved." }
+          : m
+      )
+    );
   }
 
   const isBusy = isThinking || isStreaming;
@@ -283,6 +418,54 @@ export function AiAssistantPanel({ compact = false }: AiAssistantPanelProps) {
                           className="ml-1 inline-block h-3.5 w-1.5 animate-pulse rounded-xs bg-primary/75 align-middle"
                         />
                       ) : null}
+
+                      {msg.pendingRecords && msg.pendingRecords.length > 0 ? (
+                        <div className="mt-2.5 flex flex-col gap-2 rounded-xl border border-border/70 bg-card p-2.5 text-xs">
+                          <ul className="flex flex-col gap-1 font-medium text-foreground">
+                            {msg.pendingRecords.map((rec, recIdx) => (
+                              <li key={recIdx}>
+                                &bull; {formatExtractedSummary(rec)}
+                              </li>
+                            ))}
+                          </ul>
+
+                          {msg.savedStatus === "pending" ? (
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              <Button
+                                size="sm"
+                                type="button"
+                                disabled={savingMsgId === msg.id}
+                                onClick={() =>
+                                  void handleConfirmPending(
+                                    msg.id,
+                                    msg.pendingRecords!
+                                  )
+                                }
+                              >
+                                <Check className="size-3.5" aria-hidden="true" />
+                                {savingMsgId === msg.id
+                                  ? "Saving..."
+                                  : "Confirm & Log Everywhere"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                type="button"
+                                disabled={savingMsgId === msg.id}
+                                onClick={() => handleDiscardPending(msg.id)}
+                              >
+                                <X className="size-3.5" aria-hidden="true" />
+                                Discard
+                              </Button>
+                            </div>
+                          ) : msg.savedStatus === "saved" ? (
+                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-primary/12 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                              <Check className="size-3" aria-hidden="true" />
+                              Synced across all views
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
                     {msg.limitations && !(isStreaming && isLastAssistant) ? (
                       <p className="px-1 text-[11px] leading-snug text-muted-foreground">
@@ -335,7 +518,7 @@ export function AiAssistantPanel({ compact = false }: AiAssistantPanelProps) {
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask about your measurements..."
+          placeholder="Ask a question or type 'Log fasting sugar 92'..."
           aria-label="Ask AI health data assistant"
           className="h-9 min-w-0 flex-1 bg-transparent px-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
         />

@@ -502,6 +502,418 @@ export function buildDailySheetCsv(
   return `\uFEFF${lines.join("\r\n")}`;
 }
 
+export interface ParsedImportGlucose {
+  value: number;
+  unit: GlucoseUnit;
+  meal_context: MealContext;
+  timing: MealTiming;
+  elapsed_minutes: number | null;
+  measured_at: string;
+  notes: string | null;
+}
+
+export interface ParsedImportBloodPressure {
+  systolic: number;
+  diastolic: number;
+  pulse: number | null;
+  measured_at: string;
+  notes: string | null;
+}
+
+export interface ParsedImportWeight {
+  value: number;
+  unit: WeightUnit;
+  measured_at: string;
+  notes: string | null;
+}
+
+export interface ParsedImportDailyNote {
+  note_date: string;
+  content: string;
+}
+
+export interface ParsedCsvImportBundle {
+  glucose: ParsedImportGlucose[];
+  bloodPressure: ParsedImportBloodPressure[];
+  weight: ParsedImportWeight[];
+  dailyNotes: ParsedImportDailyNote[];
+  skippedRows: number;
+}
+
+const SLOT_DEFAULTS: Record<
+  GlucoseSlotKey,
+  { meal_context: MealContext; timing: MealTiming; hhmm: string }
+> = {
+  fasting: { meal_context: "fasting", timing: "before", hhmm: "07:30" },
+  beforeBreakfast: {
+    meal_context: "breakfast",
+    timing: "before",
+    hhmm: "08:15",
+  },
+  afterBreakfast: {
+    meal_context: "breakfast",
+    timing: "after",
+    hhmm: "09:30",
+  },
+  beforeLunch: { meal_context: "lunch", timing: "before", hhmm: "12:15" },
+  afterLunch: { meal_context: "lunch", timing: "after", hhmm: "13:30" },
+  beforeDinner: { meal_context: "dinner", timing: "before", hhmm: "19:15" },
+  afterDinner: { meal_context: "dinner", timing: "after", hhmm: "20:30" },
+  other: { meal_context: "snack", timing: "after", hhmm: "16:00" },
+};
+
+export function parseCsvRows(csvText: string): string[][] {
+  const cleaned = csvText.replace(/^\uFEFF/, "");
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < cleaned.length; i++) {
+    const ch = cleaned[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (cleaned[i + 1] === '"') {
+          cell += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += ch;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      row.push(cell.trim());
+      cell = "";
+    } else if (ch === "\r" || ch === "\n") {
+      if (ch === "\r" && cleaned[i + 1] === "\n") i += 1;
+      row.push(cell.trim());
+      if (row.some((c) => c.length > 0)) rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += ch;
+    }
+  }
+
+  row.push(cell.trim());
+  if (row.some((c) => c.length > 0)) rows.push(row);
+  return rows;
+}
+
+function unquoteFormulaPrefix(val: string): string {
+  return val.startsWith("'") && /^'[=+\-@]/.test(val) ? val.slice(1) : val;
+}
+
+function normalizeDateToken(raw: string): string | null {
+  const trimmed = unquoteFormulaPrefix(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const slashMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);
+  if (slashMatch) {
+    const a = Number(slashMatch[1]);
+    const b = Number(slashMatch[2]);
+    const y = slashMatch[3];
+    // Treat DD/MM/YYYY if first > 12, otherwise MM/DD/YYYY
+    const month = a > 12 ? b : a;
+    const day = a > 12 ? a : b;
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+  }
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+function parseTimeTo24h(rawTime: string): string {
+  const trimmed = rawTime.trim();
+  const m12 = /^(\d{1,2}):(\d{2})\s*(am|pm)$/i.exec(trimmed);
+  if (m12) {
+    let h = Number(m12[1]);
+    const min = Number(m12[2]);
+    const period = m12[3].toLowerCase();
+    if (period === "pm" && h < 12) h += 12;
+    if (period === "am" && h === 12) h = 0;
+    return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+  }
+  const m24 = /^(\d{1,2}):(\d{2})$/.exec(trimmed);
+  if (m24) {
+    return `${String(Number(m24[1])).padStart(2, "0")}:${m24[2]}`;
+  }
+  return "09:00";
+}
+
+function localDateTimeToIso(dateStr: string, hhmm: string): string {
+  // Interpret YYYY-MM-DD HH:MM cleanly; fallback to UTC ISO if invalid
+  const candidate = new Date(`${dateStr}T${hhmm}:00`);
+  if (!Number.isNaN(candidate.getTime())) return candidate.toISOString();
+  return new Date(`${dateStr}T${hhmm}:00.000Z`).toISOString();
+}
+
+function parseBpToken(
+  token: string
+): { systolic: number; diastolic: number; pulse: number | null } | null {
+  const match =
+    /(\d{2,3})\s*\/\s*(\d{2,3})(?:\s*\(?(\d{2,3})\)?)?/.exec(token);
+  if (!match) return null;
+  const systolic = Number(match[1]);
+  const diastolic = Number(match[2]);
+  const pulse = match[3] ? Number(match[3]) : null;
+  if (
+    systolic < 40 ||
+    systolic > 300 ||
+    diastolic < 20 ||
+    diastolic > 200
+  ) {
+    return null;
+  }
+  return { systolic, diastolic, pulse };
+}
+
+function inferGlucoseContextFromText(rawContext: string): {
+  meal_context: MealContext;
+  timing: MealTiming;
+  elapsed_minutes: number | null;
+} {
+  const lower = rawContext.toLowerCase();
+  if (lower.includes("fasting")) {
+    return { meal_context: "fasting", timing: "before", elapsed_minutes: null };
+  }
+  const meal_context: MealContext = lower.includes("breakfast")
+    ? "breakfast"
+    : lower.includes("lunch")
+      ? "lunch"
+      : lower.includes("dinner")
+        ? "dinner"
+        : lower.includes("snack")
+          ? "snack"
+          : "unknown";
+  const timing: MealTiming = lower.includes("before")
+    ? "before"
+    : lower.includes("after")
+      ? "after"
+      : "unknown";
+  const minMatch = /(\d+)\s*m/.exec(lower);
+  return {
+    meal_context,
+    timing,
+    elapsed_minutes: minMatch ? Number(minMatch[1]) : null,
+  };
+}
+
+export function parseLogbookImportCsv(
+  csvText: string,
+  defaults?: { glucoseUnit?: GlucoseUnit; weightUnit?: WeightUnit }
+): ParsedCsvImportBundle {
+  const defaultGlucoseUnit: GlucoseUnit = defaults?.glucoseUnit ?? "mg/dL";
+  const defaultWeightUnit: WeightUnit = defaults?.weightUnit ?? "kg";
+
+  const rows = parseCsvRows(csvText);
+  if (rows.length < 2) {
+    return {
+      glucose: [],
+      bloodPressure: [],
+      weight: [],
+      dailyNotes: [],
+      skippedRows: 0,
+    };
+  }
+
+  const headers = rows[0].map((h) => h.toLowerCase());
+  const dateCol = headers.findIndex((h) => h === "date" || h.startsWith("date"));
+  const metricCol = headers.findIndex(
+    (h) => h === "metric" || h === "type" || h === "measurement"
+  );
+  const valueCol = headers.findIndex(
+    (h) => h === "value" || h === "reading"
+  );
+
+  const bundle: ParsedCsvImportBundle = {
+    glucose: [],
+    bloodPressure: [],
+    weight: [],
+    dailyNotes: [],
+    skippedRows: 0,
+  };
+
+  // Format A: Flat Entries CSV (Date, Time, Metric, Value, Unit, Context, Notes)
+  if (dateCol >= 0 && metricCol >= 0 && valueCol >= 0) {
+    const timeCol = headers.findIndex((h) => h.includes("time"));
+    const unitCol = headers.findIndex((h) => h === "unit");
+    const contextCol = headers.findIndex((h) => h.includes("context"));
+    const notesCol = headers.findIndex((h) => h.includes("note"));
+
+    for (const row of rows.slice(1)) {
+      const dateStr = normalizeDateToken(row[dateCol] ?? "");
+      if (!dateStr) {
+        bundle.skippedRows += 1;
+        continue;
+      }
+      const hhmm = timeCol >= 0 ? parseTimeTo24h(row[timeCol] ?? "") : "09:00";
+      const measuredAt = localDateTimeToIso(dateStr, hhmm);
+      const metricRaw = (row[metricCol] ?? "").toLowerCase();
+      const valRaw = unquoteFormulaPrefix(row[valueCol] ?? "").trim();
+      const unitRaw = unitCol >= 0 ? (row[unitCol] ?? "").trim() : "";
+      const ctxRaw = contextCol >= 0 ? (row[contextCol] ?? "").trim() : "";
+      const notes =
+        notesCol >= 0 && row[notesCol]
+          ? unquoteFormulaPrefix(row[notesCol]).trim() || null
+          : null;
+
+      if (metricRaw.includes("glucose") || metricRaw.includes("sugar")) {
+        const num = Number(valRaw.replace(/[^\d.]/g, ""));
+        if (Number.isFinite(num) && num > 0) {
+          const ctx = inferGlucoseContextFromText(ctxRaw);
+          bundle.glucose.push({
+            value: num,
+            unit: unitRaw === "mmol/L" ? "mmol/L" : defaultGlucoseUnit,
+            ...ctx,
+            measured_at: measuredAt,
+            notes,
+          });
+        } else {
+          bundle.skippedRows += 1;
+        }
+      } else if (
+        metricRaw.includes("pressure") ||
+        metricRaw === "bp" ||
+        metricRaw.includes("blood_pressure")
+      ) {
+        const parsedBp = parseBpToken(valRaw);
+        if (parsedBp) {
+          bundle.bloodPressure.push({
+            ...parsedBp,
+            measured_at: measuredAt,
+            notes,
+          });
+        } else {
+          bundle.skippedRows += 1;
+        }
+      } else if (metricRaw.includes("weight")) {
+        const num = Number(valRaw.replace(/[^\d.]/g, ""));
+        if (Number.isFinite(num) && num > 0) {
+          bundle.weight.push({
+            value: num,
+            unit: unitRaw === "lb" ? "lb" : defaultWeightUnit,
+            measured_at: measuredAt,
+            notes,
+          });
+        } else {
+          bundle.skippedRows += 1;
+        }
+      } else {
+        bundle.skippedRows += 1;
+      }
+    }
+    return bundle;
+  }
+
+  // Format B: Daily Sheet Pivot CSV (Date, Fasting, Before Breakfast, After Breakfast, ...)
+  const effectiveDateCol = dateCol >= 0 ? dateCol : 0;
+
+  const glucoseColIndices: Array<{ idx: number; slot: GlucoseSlotKey }> = [];
+  headers.forEach((h, idx) => {
+    if (h.includes("fasting")) glucoseColIndices.push({ idx, slot: "fasting" });
+    else if (h.includes("before breakfast") || h.includes("pre-bkfst"))
+      glucoseColIndices.push({ idx, slot: "beforeBreakfast" });
+    else if (h.includes("after breakfast") || h.includes("post-bkfst"))
+      glucoseColIndices.push({ idx, slot: "afterBreakfast" });
+    else if (h.includes("before lunch") || h.includes("pre-lunch"))
+      glucoseColIndices.push({ idx, slot: "beforeLunch" });
+    else if (h.includes("after lunch") || h.includes("post-lunch"))
+      glucoseColIndices.push({ idx, slot: "afterLunch" });
+    else if (h.includes("before dinner") || h.includes("pre-dinner"))
+      glucoseColIndices.push({ idx, slot: "beforeDinner" });
+    else if (h.includes("after dinner") || h.includes("post-dinner"))
+      glucoseColIndices.push({ idx, slot: "afterDinner" });
+    else if (h.includes("snack") || h.startsWith("other"))
+      glucoseColIndices.push({ idx, slot: "other" });
+  });
+
+  const bpCol = headers.findIndex(
+    (h) => h.includes("blood pressure") || h === "bp"
+  );
+  const weightCol = headers.findIndex((h) => h.startsWith("weight"));
+  const noteCol = headers.findIndex((h) => h.includes("note"));
+
+  for (const row of rows.slice(1)) {
+    const dateStr = normalizeDateToken(row[effectiveDateCol] ?? "");
+    if (!dateStr) {
+      bundle.skippedRows += 1;
+      continue;
+    }
+
+    for (const { idx, slot } of glucoseColIndices) {
+      const cellVal = unquoteFormulaPrefix(row[idx] ?? "").trim();
+      if (!cellVal || cellVal === "-") continue;
+      const spec = SLOT_DEFAULTS[slot];
+      const parts = cellVal.split("/").map((p) => p.trim());
+      for (const part of parts) {
+        const num = Number(part.replace(/[^\d.]/g, ""));
+        if (Number.isFinite(num) && num > 0) {
+          bundle.glucose.push({
+            value: num,
+            unit: headers[idx].includes("mmol") ? "mmol/L" : defaultGlucoseUnit,
+            meal_context: spec.meal_context,
+            timing: spec.timing,
+            elapsed_minutes: spec.timing === "after" ? 60 : null,
+            measured_at: localDateTimeToIso(dateStr, spec.hhmm),
+            notes: null,
+          });
+        }
+      }
+    }
+
+    if (bpCol >= 0 && row[bpCol]) {
+      const parts = unquoteFormulaPrefix(row[bpCol])
+        .split(/\s+\/\s+|;\s*/)
+        .map((p) => p.trim());
+      for (const part of parts) {
+        const parsedBp = parseBpToken(part);
+        if (parsedBp) {
+          bundle.bloodPressure.push({
+            ...parsedBp,
+            measured_at: localDateTimeToIso(dateStr, "08:00"),
+            notes: null,
+          });
+        }
+      }
+    }
+
+    if (weightCol >= 0 && row[weightCol]) {
+      const wCell = unquoteFormulaPrefix(row[weightCol]).trim();
+      const num = Number(wCell.replace(/[^\d.]/g, ""));
+      if (Number.isFinite(num) && num > 0) {
+        bundle.weight.push({
+          value: num,
+          unit:
+            headers[weightCol].includes("(lb") || wCell.includes("lb")
+              ? "lb"
+              : defaultWeightUnit,
+          measured_at: localDateTimeToIso(dateStr, "07:45"),
+          notes: null,
+        });
+      }
+    }
+
+    if (noteCol >= 0 && row[noteCol]) {
+      const noteText = unquoteFormulaPrefix(row[noteCol]).trim();
+      if (noteText) {
+        bundle.dailyNotes.push({ note_date: dateStr, content: noteText });
+      }
+    }
+  }
+
+  return bundle;
+}
+
 export function buildAllEntriesCsv(
   entries: UnifiedMeasurement[],
   timezone: string

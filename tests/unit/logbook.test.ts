@@ -3,6 +3,7 @@ import {
   buildAllEntriesCsv,
   buildDailySheetCsv,
   buildDailySpreadsheet,
+  parseLogbookImportCsv,
 } from "@/features/logbook/build-spreadsheet";
 import type { UnifiedMeasurement } from "@/features/measurements/service";
 import type { Tables } from "@/types/database";
@@ -162,5 +163,20 @@ describe("buildDailySpreadsheet", () => {
     const allCsv = buildAllEntriesCsv(entries, "UTC");
     expect(allCsv).toContain("Blood Glucose");
     expect(allCsv).toContain("148");
+
+    const parsedSheet = parseLogbookImportCsv(dailyCsv, {
+      glucoseUnit: "mg/dL",
+      weightUnit: "kg",
+    });
+    expect(parsedSheet.glucose.length).toBe(2);
+    expect(parsedSheet.bloodPressure.length).toBe(1);
+    expect(parsedSheet.dailyNotes[0]?.content).toBe("=Felt energized");
+
+    const parsedFlat = parseLogbookImportCsv(
+      "Date,Time,Metric,Value,Unit,Context,Notes\n2026-11-22,07:30,Blood Glucose,90,mg/dL,Fasting,Walked",
+      { glucoseUnit: "mg/dL", weightUnit: "kg" }
+    );
+    expect(parsedFlat.glucose[0]?.value).toBe(90);
+    expect(parsedFlat.glucose[0]?.meal_context).toBe("fasting");
   });
 });

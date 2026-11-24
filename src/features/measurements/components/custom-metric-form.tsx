@@ -30,6 +30,7 @@ interface CustomMetricFormProps {
   timezone?: string;
   initialNowIso?: string;
   customConfigs: Tables<"tracking_configs">[];
+  defaultConfigId?: string;
   initialRecord?: Tables<"custom_metric_records">;
   onSaved: () => void;
 }
@@ -39,12 +40,13 @@ export function CustomMetricForm({
   timezone,
   initialNowIso,
   customConfigs,
+  defaultConfigId,
   initialRecord,
   onSaved,
 }: CustomMetricFormProps) {
   const isEditing = Boolean(initialRecord);
   const [selectedConfigId, setSelectedConfigId] = useState(
-    initialRecord?.metric_config_id ?? customConfigs[0]?.id ?? ""
+    initialRecord?.metric_config_id ?? defaultConfigId ?? customConfigs[0]?.id ?? ""
   );
   const [rawValue, setRawValue] = useState(() => {
     if (!initialRecord) return "";

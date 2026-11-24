@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { UnifiedMeasurement } from "@/features/measurements/service";
+import { invalidateAllHealthQueries } from "@/features/measurements/save-extracted";
 import { VoiceLoggerPanel } from "@/features/voice-logging/components/voice-logger-panel";
 import type {
   GlucoseUnit,
@@ -122,7 +123,7 @@ export function LogWorkspace({
 
   function handleSaved() {
     setEditingItem(null);
-    void queryClient.invalidateQueries({ queryKey });
+    invalidateAllHealthQueries(queryClient);
     router.refresh();
   }
 
@@ -140,7 +141,7 @@ export function LogWorkspace({
       }
       setDeletingItem(null);
       toast.success("Measurement deleted");
-      void queryClient.invalidateQueries({ queryKey });
+      invalidateAllHealthQueries(queryClient);
       router.refresh();
     } catch {
       toast.error("Couldn't delete record. Check your connection.");

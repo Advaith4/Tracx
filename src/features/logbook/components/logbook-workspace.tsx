@@ -13,6 +13,7 @@ import {
   StickyNote,
   Table2,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/layout/feedback-states";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -44,6 +45,8 @@ import {
   buildAllEntriesCsv,
   buildDailySheetCsv,
   GLUCOSE_SHEET_COLUMNS,
+  parseLogbookImportCsv,
+  type GlucoseSlotKey,
   type SpreadsheetCellEntry,
 } from "@/features/logbook/build-spreadsheet";
 import type {
@@ -52,8 +55,10 @@ import type {
 } from "@/features/logbook/service";
 import { BloodPressureForm } from "@/features/measurements/components/blood-pressure-form";
 import { CustomMetricForm } from "@/features/measurements/components/custom-metric-form";
+import { combineLocalDateTimeToIso } from "@/features/measurements/components/datetime-utils";
 import { GlucoseForm } from "@/features/measurements/components/glucose-form";
 import { WeightForm } from "@/features/measurements/components/weight-form";
+import { invalidateAllHealthQueries } from "@/features/measurements/save-extracted";
 import type { UnifiedMeasurement } from "@/features/measurements/service";
 import { getLocalDateString, getLocalHHMM } from "@/lib/calculations/daily-status";
 import { cn } from "@/lib/utils";
@@ -92,15 +97,52 @@ function triggerCsvDownload(filename: string, csvContent: string) {
   URL.revokeObjectURL(url);
 }
 
+const SLOT_TIME_DEFAULTS: Record<GlucoseSlotKey, string> = {
+  fasting: "07:30",
+  beforeBreakfast: "08:15",
+  afterBreakfast: "09:30",
+  beforeLunch: "12:15",
+  afterLunch: "13:30",
+  beforeDinner: "19:15",
+  afterDinner: "20:30",
+  other: "16:00",
+};
+
+interface QuickAddTarget {
+  metricType: MetricType;
+  date: string;
+  title: string;
+  initialNowIso: string;
+  contextHint?: string;
+  customConfigId?: string;
+}
+
 function CellChipList({
   entries,
   onSelectEntry,
+  onEmptyClick,
+  emptyLabel,
 }: {
   entries: SpreadsheetCellEntry[];
   onSelectEntry: (item: UnifiedMeasurement) => void;
+  onEmptyClick?: () => void;
+  emptyLabel?: string;
 }) {
   if (entries.length === 0) {
-    return <span className="text-muted-foreground/45">-</span>;
+    if (!onEmptyClick) {
+      return <span className="text-muted-foreground/45">-</span>;
+    }
+    return (
+      <button
+        type="button"
+        onClick={onEmptyClick}
+        aria-label={emptyLabel ?? "Add reading"}
+        title={emptyLabel ? `Add ${emptyLabel}` : "Click to log reading"}
+        className="inline-flex h-6 w-8 items-center justify-center rounded text-muted-foreground/40 transition-colors hover:bg-primary/10 hover:text-primary"
+      >
+        +
+      </button>
+    );
   }
 
   return (
@@ -158,6 +200,12 @@ export function LogbookWorkspace({
     date: string;
     content: string;
   } | null>(null);
+  const [quickAddTarget, setQuickAddTarget] = useState<QuickAddTarget | null>(
+    null
+  );
+  const [importOpen, setImportOpen] = useState(false);
+  const [importCsvText, setImportCsvText] = useState("");
+  const [importing, setImporting] = useState(false);
 
   const isDefaultInitial =
     Boolean(initialData) &&
@@ -214,10 +262,49 @@ export function LogbookWorkspace({
 
   function refreshAll() {
     setEditingItem(null);
-    void queryClient.invalidateQueries({ queryKey: ["logbook"] });
-    void queryClient.invalidateQueries({ queryKey: ["insights"] });
-    void queryClient.invalidateQueries({ queryKey: ["calendar"] });
-    void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    setQuickAddTarget(null);
+    invalidateAllHealthQueries(queryClient);
+  }
+
+  const parsedImport = useMemo(() => {
+    if (!importCsvText.trim()) return null;
+    return parseLogbookImportCsv(importCsvText, {
+      glucoseUnit: data?.spreadsheet.glucoseUnit ?? "mg/dL",
+      weightUnit: data?.spreadsheet.weightUnit ?? "kg",
+    });
+  }, [importCsvText, data?.spreadsheet.glucoseUnit, data?.spreadsheet.weightUnit]);
+
+  async function handleConfirmImport() {
+    if (!parsedImport) return;
+    setImporting(true);
+    try {
+      const res = await fetch("/api/logbook/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          glucose: parsedImport.glucose,
+          bloodPressure: parsedImport.bloodPressure,
+          weight: parsedImport.weight,
+          dailyNotes: parsedImport.dailyNotes,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        toast.error(json.error?.message ?? "Import failed.");
+        return;
+      }
+      const count = json.data?.importedCount ?? 0;
+      toast.success(
+        `Imported ${count} ${count === 1 ? "entry" : "entries"} across all views`
+      );
+      setImportOpen(false);
+      setImportCsvText("");
+      refreshAll();
+    } catch {
+      toast.error("Couldn't import CSV. Check your connection.");
+    } finally {
+      setImporting(false);
+    }
   }
 
   const saveNoteMutation = useMutation({
@@ -345,6 +432,17 @@ export function LogbookWorkspace({
                 </button>
               ))}
             </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              type="button"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload className="size-3.5" aria-hidden="true" />
+              <span className="sm:hidden">Import</span>
+              <span className="hidden sm:inline">Import CSV</span>
+            </Button>
 
             <Button
               size="sm"
@@ -579,6 +677,19 @@ export function LogbookWorkspace({
                             <CellChipList
                               entries={row.glucoseCells[col.key]}
                               onSelectEntry={setEditingItem}
+                              emptyLabel={`${col.label} on ${row.dateLabel}`}
+                              onEmptyClick={() =>
+                                setQuickAddTarget({
+                                  metricType: "glucose",
+                                  date: row.date,
+                                  title: `${row.dateLabel} · ${col.label}`,
+                                  contextHint: col.label,
+                                  initialNowIso: combineLocalDateTimeToIso(
+                                    row.date,
+                                    SLOT_TIME_DEFAULTS[col.key]
+                                  ),
+                                })
+                              }
                             />
                           </td>
                         ))}
@@ -591,6 +702,18 @@ export function LogbookWorkspace({
                           <CellChipList
                             entries={row.bloodPressure}
                             onSelectEntry={setEditingItem}
+                            emptyLabel={`Blood Pressure on ${row.dateLabel}`}
+                            onEmptyClick={() =>
+                              setQuickAddTarget({
+                                metricType: "blood_pressure",
+                                date: row.date,
+                                title: `${row.dateLabel} · Blood Pressure`,
+                                initialNowIso: combineLocalDateTimeToIso(
+                                  row.date,
+                                  "08:00"
+                                ),
+                              })
+                            }
                           />
                         </td>
 
@@ -598,6 +721,18 @@ export function LogbookWorkspace({
                           <CellChipList
                             entries={row.weight}
                             onSelectEntry={setEditingItem}
+                            emptyLabel={`Weight on ${row.dateLabel}`}
+                            onEmptyClick={() =>
+                              setQuickAddTarget({
+                                metricType: "weight",
+                                date: row.date,
+                                title: `${row.dateLabel} · Weight`,
+                                initialNowIso: combineLocalDateTimeToIso(
+                                  row.date,
+                                  "07:45"
+                                ),
+                              })
+                            }
                           />
                         </td>
 
@@ -609,6 +744,19 @@ export function LogbookWorkspace({
                             <CellChipList
                               entries={row.customCells[col.configId] ?? []}
                               onSelectEntry={setEditingItem}
+                              emptyLabel={`${col.label} on ${row.dateLabel}`}
+                              onEmptyClick={() =>
+                                setQuickAddTarget({
+                                  metricType: "custom",
+                                  date: row.date,
+                                  title: `${row.dateLabel} · ${col.label}`,
+                                  customConfigId: col.configId,
+                                  initialNowIso: combineLocalDateTimeToIso(
+                                    row.date,
+                                    "09:00"
+                                  ),
+                                })
+                              }
                             />
                           </td>
                         ))}
@@ -957,6 +1105,161 @@ export function LogbookWorkspace({
               }
             >
               {saveNoteMutation.isPending ? "Saving..." : "Save Note"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Add Measurement From Empty Spreadsheet Cell */}
+      <Dialog
+        open={Boolean(quickAddTarget)}
+        onOpenChange={(open) => !open && setQuickAddTarget(null)}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Reading · {quickAddTarget?.title}</DialogTitle>
+            <DialogDescription>
+              Logged directly into your records and synced across Home,
+              Calendar, Insights, and Excel Sheet.
+            </DialogDescription>
+          </DialogHeader>
+
+          {quickAddTarget?.metricType === "glucose" ? (
+            <GlucoseForm
+              userId={userId}
+              timezone={data?.timezone}
+              initialNowIso={quickAddTarget.initialNowIso}
+              defaultUnit={data?.spreadsheet.glucoseUnit ?? "mg/dL"}
+              contextHint={quickAddTarget.contextHint}
+              onSaved={() => {
+                toast.success("Reading logged & synced everywhere");
+                refreshAll();
+              }}
+            />
+          ) : quickAddTarget?.metricType === "blood_pressure" ? (
+            <BloodPressureForm
+              userId={userId}
+              timezone={data?.timezone}
+              initialNowIso={quickAddTarget.initialNowIso}
+              onSaved={() => {
+                toast.success("Reading logged & synced everywhere");
+                refreshAll();
+              }}
+            />
+          ) : quickAddTarget?.metricType === "weight" ? (
+            <WeightForm
+              userId={userId}
+              timezone={data?.timezone}
+              initialNowIso={quickAddTarget.initialNowIso}
+              defaultUnit={data?.spreadsheet.weightUnit ?? "kg"}
+              onSaved={() => {
+                toast.success("Reading logged & synced everywhere");
+                refreshAll();
+              }}
+            />
+          ) : quickAddTarget?.metricType === "custom" && data ? (
+            <CustomMetricForm
+              userId={userId}
+              timezone={data.timezone}
+              initialNowIso={quickAddTarget.initialNowIso}
+              customConfigs={data.configs.filter(
+                (c) => c.metric_type === "custom"
+              )}
+              defaultConfigId={quickAddTarget.customConfigId}
+              onSaved={() => {
+                toast.success("Reading logged & synced everywhere");
+                refreshAll();
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Excel / CSV Modal */}
+      <Dialog
+        open={importOpen}
+        onOpenChange={(open) => {
+          setImportOpen(open);
+          if (!open) setImportCsvText("");
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import from Excel (.csv)</DialogTitle>
+            <DialogDescription>
+              Upload a CSV exported from Excel or Tracx (Daily Sheet or Date,
+              Time, Metric, Value, Context columns).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3">
+            <Input
+              type="file"
+              accept=".csv,text/csv"
+              aria-label="Choose CSV file"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                void file.text().then((txt) => setImportCsvText(txt));
+              }}
+              className="h-10 cursor-pointer text-xs"
+            />
+            <Textarea
+              rows={5}
+              value={importCsvText}
+              onChange={(e) => setImportCsvText(e.target.value)}
+              placeholder={"Date,Metric,Value,Unit,Context,Notes\n2026-11-22,Blood Glucose,92,mg/dL,Fasting,Good sleep"}
+              className="font-mono text-xs"
+            />
+
+            {parsedImport ? (
+              <div className="rounded-xl bg-muted/50 px-3 py-2 text-xs text-foreground">
+                Ready to import:{" "}
+                <span className="font-semibold">
+                  {parsedImport.glucose.length}
+                </span>{" "}
+                glucose,{" "}
+                <span className="font-semibold">
+                  {parsedImport.bloodPressure.length}
+                </span>{" "}
+                BP,{" "}
+                <span className="font-semibold">
+                  {parsedImport.weight.length}
+                </span>{" "}
+                weight,{" "}
+                <span className="font-semibold">
+                  {parsedImport.dailyNotes.length}
+                </span>{" "}
+                notes
+                {parsedImport.skippedRows > 0
+                  ? ` (${parsedImport.skippedRows} skipped)`
+                  : ""}
+              </div>
+            ) : null}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setImportOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={
+                importing ||
+                !parsedImport ||
+                parsedImport.glucose.length +
+                  parsedImport.bloodPressure.length +
+                  parsedImport.weight.length +
+                  parsedImport.dailyNotes.length ===
+                  0
+              }
+              onClick={() => void handleConfirmImport()}
+            >
+              {importing ? "Importing..." : "Import & Sync Everywhere"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -189,10 +189,6 @@ export function ReportsWorkspace({
         <Card>
           <CardHeader>
             <CardTitle>Generate Report</CardTitle>
-            <CardDescription>
-              Structured summary with tables, visualizations, and neutral
-              observations.
-            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-3">

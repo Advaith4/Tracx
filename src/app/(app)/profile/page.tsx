@@ -111,13 +111,8 @@ async function ProfileContent() {
 
 export default function ProfilePage() {
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your personal details, timezone, and account session.
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
 
       <Suspense fallback={<LoadingState rows={3} />}>
         <ProfileContent />

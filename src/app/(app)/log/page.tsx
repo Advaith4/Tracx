@@ -80,13 +80,8 @@ export default function LogPage({
   searchParams: Promise<{ metric?: string; context?: string; mode?: string }>;
 }) {
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Log</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Record blood glucose, blood pressure, weight, or custom measurements.
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl font-semibold tracking-tight">Log</h1>
 
       <Suspense fallback={<LoadingState rows={3} />}>
         <AuthenticatedLogContent searchParams={searchParams} />

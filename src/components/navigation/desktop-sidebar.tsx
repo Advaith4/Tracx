@@ -2,15 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HeartPulse, Table2 } from "lucide-react";
+import { HeartPulse } from "lucide-react";
 import { NAV_ITEMS } from "@/config/navigation";
 import { cn } from "@/lib/utils";
-
-const SIDEBAR_ITEMS = [
-  ...NAV_ITEMS.slice(0, 2),
-  { label: "Daily Sheet", href: "/logbook", icon: Table2 },
-  ...NAV_ITEMS.slice(2),
-];
 
 export function DesktopSidebar() {
   const pathname = usePathname();
@@ -35,7 +29,7 @@ export function DesktopSidebar() {
       </Link>
 
       <nav aria-label="Primary navigation" className="flex flex-1 flex-col gap-1">
-        {SIDEBAR_ITEMS.map((item) => {
+        {NAV_ITEMS.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
@@ -60,8 +54,7 @@ export function DesktopSidebar() {
       </nav>
 
       <div className="mt-6 rounded-xl border border-border/70 bg-muted/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
-        Personal tracking tool only — not a substitute for professional medical
-        care.
+        Personal tracking only — not medical advice.
       </div>
     </aside>
   );

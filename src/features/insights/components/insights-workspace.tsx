@@ -2,28 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   ArrowRight,
-  CalendarCheck2,
   Droplets,
   FileText,
   Flame,
-  History,
-  Mic,
-  Pencil,
-  PencilLine,
   Scale,
-  Search,
   SlidersHorizontal,
   Sparkles,
   Stethoscope,
-  StickyNote,
   Table2,
-  Trash2,
 } from "lucide-react";
 import { BloodPressureChart } from "@/components/charts/blood-pressure-chart";
 import { CustomMetricChart } from "@/components/charts/custom-metric-chart";
@@ -43,49 +33,36 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { InsightsPayload } from "@/features/insights/service";
 import { LogbookWorkspace } from "@/features/logbook/components/logbook-workspace";
-import { BloodPressureForm } from "@/features/measurements/components/blood-pressure-form";
-import { CustomMetricForm } from "@/features/measurements/components/custom-metric-form";
-import { GlucoseForm } from "@/features/measurements/components/glucose-form";
-import { WeightForm } from "@/features/measurements/components/weight-form";
-import type { UnifiedMeasurement } from "@/features/measurements/service";
+import { ReportsWorkspace } from "@/features/weekly-reports/components/reports-workspace";
+import type { ParsedWeeklyReport } from "@/features/weekly-reports/service";
 import type {
   DateRangePreset,
   GlucoseContextFilter,
 } from "@/lib/calculations/analytics";
-import type { DailyActivityDay } from "@/lib/calculations/insights-synthesis";
 import { cn } from "@/lib/utils";
-import type { MetricType } from "@/types/database";
 
-type InsightTab =
+export type InsightTab =
   | "overview"
   | "sheet"
   | "glucose"
   | "blood_pressure"
   | "weight"
   | "custom"
-  | "history";
+  | "reports";
 
 interface InsightsWorkspaceProps {
   userId: string;
   initialData: InsightsPayload;
+  initialTab?: InsightTab;
+  reportsSeed: {
+    timezone: string;
+    defaultPeriodStart: string;
+    defaultPeriodEnd: string;
+    initialReports: ParsedWeeklyReport[];
+  };
 }
 
 function MetricKpiTile({
@@ -114,27 +91,13 @@ function MetricKpiTile({
   );
 }
 
-function getDeleteEndpoint(item: UnifiedMeasurement): string {
-  switch (item.metricType) {
-    case "glucose":
-      return `/api/measurements/glucose/${item.id}`;
-    case "blood_pressure":
-      return `/api/measurements/blood-pressure/${item.id}`;
-    case "weight":
-      return `/api/measurements/weight/${item.id}`;
-    case "custom":
-      return `/api/measurements/custom/${item.id}`;
-  }
-}
-
 export function InsightsWorkspace({
   userId,
   initialData,
+  initialTab = "overview",
+  reportsSeed,
 }: InsightsWorkspaceProps) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-
-  const [activeTab, setActiveTab] = useState<InsightTab>("overview");
+  const [activeTab, setActiveTab] = useState<InsightTab>(initialTab);
   const [preset, setPreset] = useState<DateRangePreset>(initialData.preset);
   const [customStart, setCustomStart] = useState(initialData.startDate);
   const [customEnd, setCustomEnd] = useState(initialData.endDate);
@@ -144,20 +107,6 @@ export function InsightsWorkspace({
   const [selectedCustomId, setSelectedCustomId] = useState<string>(
     initialData.customMetrics[0]?.configId ?? ""
   );
-  const [selectedDayDate, setSelectedDayDate] = useState<string | null>(
-    initialData.synthesis.dailyActivity[
-      initialData.synthesis.dailyActivity.length - 1
-    ]?.date ?? null
-  );
-  const [historyMetric, setHistoryMetric] = useState<MetricType | "all">("all");
-  const [search, setSearch] = useState("");
-  const [editingItem, setEditingItem] = useState<UnifiedMeasurement | null>(
-    null
-  );
-  const [deletingItem, setDeletingItem] = useState<UnifiedMeasurement | null>(
-    null
-  );
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const queryKey = [
     "insights",
@@ -166,17 +115,13 @@ export function InsightsWorkspace({
     customStart,
     customEnd,
     glucoseFilter,
-    historyMetric,
-    search,
   ];
 
   const isInitialParams =
     preset === initialData.preset &&
     customStart === initialData.startDate &&
     customEnd === initialData.endDate &&
-    glucoseFilter === initialData.glucoseContext &&
-    historyMetric === "all" &&
-    search === "";
+    glucoseFilter === initialData.glucoseContext;
 
   const { data, isLoading, error, refetch } = useQuery<InsightsPayload>({
     queryKey,
@@ -185,14 +130,10 @@ export function InsightsWorkspace({
       const params = new URLSearchParams({
         range: preset,
         glucoseContext: glucoseFilter,
-        metric: historyMetric,
       });
       if (preset === "custom") {
         params.set("start", customStart);
         params.set("end", customEnd);
-      }
-      if (search.trim()) {
-        params.set("search", search.trim());
       }
 
       const response = await fetch(`/api/insights?${params.toString()}`);
@@ -203,34 +144,6 @@ export function InsightsWorkspace({
       return json.data;
     },
   });
-
-  function refreshAll() {
-    setEditingItem(null);
-    void queryClient.invalidateQueries({ queryKey: ["insights", userId] });
-    router.refresh();
-  }
-
-  async function handleConfirmDelete() {
-    if (!deletingItem) return;
-    setIsDeleting(true);
-    try {
-      const response = await fetch(getDeleteEndpoint(deletingItem), {
-        method: "DELETE",
-      });
-      const json = await response.json();
-      if (!response.ok || json.error) {
-        toast.error(json.error?.message ?? "Couldn't delete record.");
-        return;
-      }
-      setDeletingItem(null);
-      toast.success("Measurement deleted");
-      refreshAll();
-    } catch {
-      toast.error("Couldn't delete record. Check your connection.");
-    } finally {
-      setIsDeleting(false);
-    }
-  }
 
   const activeCustomSeries =
     data?.customMetrics.find((c) => c.configId === selectedCustomId) ??
@@ -247,10 +160,8 @@ export function InsightsWorkspace({
     ? `${data.completion.recordedCount} logged · ${data.completion.skippedCount} skipped`
     : "Period adherence";
 
-  const activeDay: DailyActivityDay | null =
-    data?.synthesis.dailyActivity.find((d) => d.date === selectedDayDate) ??
-    data?.synthesis.dailyActivity[data.synthesis.dailyActivity.length - 1] ??
-    null;
+  const showCustomTab = (data?.customMetrics.length ?? 0) > 0;
+  const isStandaloneSubTab = activeTab === "sheet" || activeTab === "reports";
 
   return (
     <div className="flex flex-col gap-5">
@@ -273,8 +184,16 @@ export function InsightsWorkspace({
                   icon: Activity,
                 },
                 { id: "weight", label: "Weight", icon: Scale },
-                { id: "custom", label: "Custom", icon: SlidersHorizontal },
-                { id: "history", label: "History", icon: History },
+                ...(showCustomTab
+                  ? [
+                      {
+                        id: "custom" as const,
+                        label: "Custom",
+                        icon: SlidersHorizontal,
+                      },
+                    ]
+                  : []),
+                { id: "reports", label: "Reports", icon: FileText },
               ] as const
             ).map((tab) => {
               const Icon = tab.icon;
@@ -305,9 +224,9 @@ export function InsightsWorkspace({
               href="/logbook"
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              Open Full-Screen Logbook &rarr;
+              Full-Screen Sheet &rarr;
             </Link>
-          ) : (
+          ) : !isStandaloneSubTab ? (
             <div className="flex flex-wrap items-center justify-between gap-2 lg:justify-end">
               <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1">
                 {(
@@ -340,10 +259,10 @@ export function InsightsWorkspace({
                 </span>
               ) : null}
             </div>
-          )}
+          ) : null}
         </div>
 
-        {activeTab !== "sheet" && preset === "custom" ? (
+        {!isStandaloneSubTab && preset === "custom" ? (
           <Card size="sm">
             <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1">
@@ -455,7 +374,13 @@ export function InsightsWorkspace({
                       <button
                         key={card.id}
                         type="button"
-                        onClick={() => setActiveTab(card.targetTab)}
+                        onClick={() =>
+                          setActiveTab(
+                            card.targetTab === "history"
+                              ? "sheet"
+                              : card.targetTab
+                          )
+                        }
                         className="group flex flex-col justify-between gap-2 rounded-2xl bg-card p-4 text-left shadow-2xs ring-1 ring-border/70 transition-all hover:ring-primary/40"
                       >
                         <div className="flex items-center justify-between gap-2">
@@ -490,15 +415,11 @@ export function InsightsWorkspace({
                 )}
               </section>
 
-              {/* Meal comparison + Daily Consistency Heatmap */}
+              {/* Meal comparison + Routine Check-In Consistency */}
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
                 <Card className="lg:col-span-7">
                   <CardHeader>
-                    <CardTitle>Meal-by-Meal Glucose Comparison</CardTitle>
-                    <CardDescription>
-                      Compare how fasting, breakfast, lunch, and dinner behave
-                      instead of blending meals together.
-                    </CardDescription>
+                    <CardTitle>Meal-by-Meal Glucose</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <GlucoseMealBarChart
@@ -510,120 +431,19 @@ export function InsightsWorkspace({
 
                 <Card className="lg:col-span-5">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CalendarCheck2
-                        className="size-4 text-primary"
-                        aria-hidden="true"
-                      />
-                      Daily Consistency &amp; Notes
-                    </CardTitle>
-                    <CardDescription>
-                      Tap any day to inspect logged count and your daily note.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-4">
-                    <div className="grid grid-cols-7 gap-1.5">
-                      {data.synthesis.dailyActivity.map((day) => {
-                        const selected = activeDay?.date === day.date;
-                        const ratio =
-                          day.scheduledCount > 0
-                            ? day.loggedCount / day.scheduledCount
-                            : day.loggedCount > 0
-                              ? 1
-                              : 0;
-                        return (
-                          <button
-                            key={day.date}
-                            type="button"
-                            onClick={() => setSelectedDayDate(day.date)}
-                            title={`${day.shortLabel}: ${day.loggedCount} logged`}
-                            className={cn(
-                              "relative flex flex-col items-center justify-center rounded-xl py-2 text-[11px] font-medium transition-all",
-                              ratio >= 0.75
-                                ? "bg-primary/15 text-primary"
-                                : ratio > 0
-                                  ? "bg-amber-100/80 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
-                                  : "bg-muted/50 text-muted-foreground",
-                              selected && "ring-2 ring-primary ring-offset-1"
-                            )}
-                          >
-                            <span className="text-[10px] opacity-75">
-                              {day.weekday.slice(0, 1)}
-                            </span>
-                            <span className="font-semibold tabular-nums">
-                              {day.date.slice(8)}
-                            </span>
-                            {day.dailyNote ? (
-                              <span
-                                aria-hidden="true"
-                                className="mt-0.5 size-1 rounded-full bg-current"
-                              />
-                            ) : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {activeDay ? (
-                      <div className="rounded-xl bg-muted/45 p-3 text-xs">
-                        <div className="flex items-center justify-between gap-2 font-semibold text-foreground">
-                          <span>
-                            {activeDay.weekday}, {activeDay.shortLabel}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="tabular-nums text-primary">
-                              {activeDay.loggedCount} logged
-                            </span>
-                            <Link
-                              href={`/calendar?date=${activeDay.date}`}
-                              className="font-medium text-primary hover:underline"
-                            >
-                              Day stats &rarr;
-                            </Link>
-                          </div>
-                        </div>
-                        {activeDay.dailyNote ? (
-                          <p className="mt-1.5 flex items-start gap-1.5 text-muted-foreground">
-                            <StickyNote
-                              className="mt-0.5 size-3.5 shrink-0 text-primary"
-                              aria-hidden="true"
-                            />
-                            <span>{activeDay.dailyNote}</span>
-                          </p>
-                        ) : (
-                          <p className="mt-1 text-muted-foreground">
-                            No daily note saved for this date.
-                          </p>
-                        )}
-                      </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Slot-level routine adherence + Doctor Visit Prep */}
-              <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-                <Card className="lg:col-span-6">
-                  <CardHeader>
                     <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          <Flame
-                            className="size-4 text-primary"
-                            aria-hidden="true"
-                          />
-                          Routine by Check-In Time
-                        </CardTitle>
-                        <CardDescription>
-                          Spot which scheduled check-ins are effortless vs
-                          commonly missed.
-                        </CardDescription>
-                      </div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Flame
+                          className="size-4 text-primary"
+                          aria-hidden="true"
+                        />
+                        Check-In Routine
+                      </CardTitle>
                       <Link
-                        href="/profile/reminders"
+                        href="/calendar"
                         className="text-xs font-medium text-primary hover:underline"
                       >
-                        Tune reminders
+                        Calendar &rarr;
                       </Link>
                     </div>
                   </CardHeader>
@@ -662,66 +482,67 @@ export function InsightsWorkspace({
                     )}
                   </CardContent>
                 </Card>
+              </div>
 
-                <Card className="lg:col-span-6">
-                  <CardHeader>
+              {/* Care Team Visit Prep */}
+              <Card>
+                <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+                  <div>
                     <CardTitle className="flex items-center gap-2">
                       <Stethoscope
                         className="size-4 text-primary"
                         aria-hidden="true"
                       />
-                      Care Team Visit Prep
+                      Care Team Summary
                     </CardTitle>
-                    <CardDescription>
-                      {data.synthesis.profileContext.providerName
-                        ? `Summary ready to share with ${data.synthesis.profileContext.providerName}.`
-                        : "Key numbers from this period formatted for your next prenatal appointment."}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-4">
-                    {data.synthesis.visitPrepBullets.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        Log readings to assemble an appointment-ready summary.
-                      </p>
-                    ) : (
-                      <ul className="space-y-2 rounded-xl bg-muted/40 p-3.5 text-xs leading-relaxed text-foreground">
-                        {data.synthesis.visitPrepBullets.map((line, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
-                            <span>{line}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-
-                    <div className="flex flex-wrap gap-2">
-                      <Link
-                        href="/reports"
-                        className={cn(
-                          buttonVariants({ size: "sm", variant: "default" }),
-                          "gap-1.5 rounded-lg"
-                        )}
-                      >
-                        <FileText className="size-3.5" aria-hidden="true" />
-                        Export Weekly PDF
-                      </Link>
-                      <Link
-                        href="/profile/tracking"
-                        className={cn(
-                          buttonVariants({ size: "sm", variant: "secondary" }),
-                          "gap-1.5 rounded-lg"
-                        )}
-                      >
-                        <SlidersHorizontal
-                          className="size-3.5"
-                          aria-hidden="true"
-                        />
-                        Provider Targets
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    {data.synthesis.profileContext.providerName ? (
+                      <CardDescription>
+                        Prepared for {data.synthesis.profileContext.providerName}
+                      </CardDescription>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => setActiveTab("reports")}
+                      className="gap-1.5 rounded-lg"
+                    >
+                      <FileText className="size-3.5" aria-hidden="true" />
+                      Weekly Reports &amp; PDF
+                    </Button>
+                    <Link
+                      href="/profile/tracking"
+                      className={cn(
+                        buttonVariants({ size: "sm", variant: "secondary" }),
+                        "gap-1.5 rounded-lg"
+                      )}
+                    >
+                      <SlidersHorizontal
+                        className="size-3.5"
+                        aria-hidden="true"
+                      />
+                      Targets
+                    </Link>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {data.synthesis.visitPrepBullets.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Log readings to assemble your appointment summary.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2 rounded-xl bg-muted/40 p-3.5 text-xs leading-relaxed text-foreground">
+                      {data.synthesis.visitPrepBullets.map((line, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
+                          <span>{line}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           ) : null}
 
@@ -1235,218 +1056,18 @@ export function InsightsWorkspace({
             <LogbookWorkspace userId={userId} />
           ) : null}
 
-          {/* HISTORY TAB */}
-          {activeTab === "history" ? (
-            <Card>
-              <CardHeader className="gap-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <CardTitle>Measurement History</CardTitle>
-                    <CardDescription>
-                      Search, edit, or remove any reading recorded in this
-                      window.
-                    </CardDescription>
-                  </div>
-                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
-                    {data.history.length} entries
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                  <div className="relative sm:col-span-2">
-                    <Search
-                      className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                    <Input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search notes, context, or values..."
-                      aria-label="Search history"
-                      className="h-10 pl-9"
-                    />
-                  </div>
-
-                  <Select
-                    value={historyMetric}
-                    onValueChange={(next) => {
-                      if (next) setHistoryMetric(next as MetricType | "all");
-                    }}
-                  >
-                    <SelectTrigger className="h-10 w-full">
-                      <SelectValue placeholder="All metrics">
-                        {(value: string | null) =>
-                          value === "glucose"
-                            ? "Blood Glucose"
-                            : value === "blood_pressure"
-                              ? "Blood Pressure"
-                              : value === "weight"
-                                ? "Weight"
-                                : value === "custom"
-                                  ? "Custom"
-                                  : "All metrics"
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All metrics</SelectItem>
-                      <SelectItem value="glucose">Blood Glucose</SelectItem>
-                      <SelectItem value="blood_pressure">
-                        Blood Pressure
-                      </SelectItem>
-                      <SelectItem value="weight">Weight</SelectItem>
-                      <SelectItem value="custom">Custom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardHeader>
-
-              <CardContent>
-                {data.history.length === 0 ? (
-                  <EmptyState
-                    icon={History}
-                    title="No matching records"
-                    description="Try widening the date range or clearing your search filters."
-                  />
-                ) : (
-                  <div className="flex flex-col gap-1">
-                    {data.history.map((item) => (
-                      <div
-                        key={`${item.metricType}-${item.id}`}
-                        className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-muted/45"
-                      >
-                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-semibold text-foreground tabular-nums">
-                              {item.displayValue}
-                            </span>
-                            <span className="text-xs font-medium text-muted-foreground">
-                              {item.metricLabel}
-                            </span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                              {item.source === "voice" ? (
-                                <Mic className="size-3" aria-hidden="true" />
-                              ) : (
-                                <PencilLine
-                                  className="size-3"
-                                  aria-hidden="true"
-                                />
-                              )}
-                              <span className="capitalize">{item.source}</span>
-                            </span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {item.contextLabel} · {item.measuredAtLabel}
-                          </span>
-                          {item.notes ? (
-                            <span className="truncate text-xs italic text-muted-foreground">
-                              &ldquo;{item.notes}&rdquo;
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <div className="flex shrink-0 items-center gap-1">
-                          <Button
-                            size="icon-sm"
-                            variant="ghost"
-                            type="button"
-                            aria-label={`Edit ${item.metricLabel}`}
-                            onClick={() => setEditingItem(item)}
-                          >
-                            <Pencil className="size-4" aria-hidden="true" />
-                          </Button>
-                          <Button
-                            size="icon-sm"
-                            variant="ghost"
-                            type="button"
-                            aria-label={`Delete ${item.metricLabel}`}
-                            onClick={() => setDeletingItem(item)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="size-4" aria-hidden="true" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* REPORTS TAB */}
+          {activeTab === "reports" ? (
+            <ReportsWorkspace
+              userId={userId}
+              timezone={reportsSeed.timezone}
+              defaultPeriodStart={reportsSeed.defaultPeriodStart}
+              defaultPeriodEnd={reportsSeed.defaultPeriodEnd}
+              initialReports={reportsSeed.initialReports}
+            />
           ) : null}
         </>
       ) : null}
-
-      <Dialog
-        open={Boolean(editingItem)}
-        onOpenChange={(open) => !open && setEditingItem(null)}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit {editingItem?.metricLabel}</DialogTitle>
-            <DialogDescription>
-              Update the recorded value, context, timestamp, or notes.
-            </DialogDescription>
-          </DialogHeader>
-
-          {editingItem?.rawGlucose ? (
-            <GlucoseForm
-              initialRecord={editingItem.rawGlucose}
-              onSaved={refreshAll}
-            />
-          ) : editingItem?.rawBloodPressure ? (
-            <BloodPressureForm
-              initialRecord={editingItem.rawBloodPressure}
-              onSaved={refreshAll}
-            />
-          ) : editingItem?.rawWeight ? (
-            <WeightForm
-              initialRecord={editingItem.rawWeight}
-              onSaved={refreshAll}
-            />
-          ) : editingItem?.rawCustom && data ? (
-            <CustomMetricForm
-              customConfigs={data.configs.filter(
-                (c) => c.metric_type === "custom"
-              )}
-              initialRecord={editingItem.rawCustom}
-              onSaved={refreshAll}
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={Boolean(deletingItem)}
-        onOpenChange={(open) => !open && setDeletingItem(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Measurement</DialogTitle>
-            <DialogDescription>
-              Remove {deletingItem?.metricLabel} ({deletingItem?.displayValue})
-              recorded on {deletingItem?.measuredAtLabel}? This cannot be
-              undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => setDeletingItem(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              type="button"
-              disabled={isDeleting}
-              onClick={() => void handleConfirmDelete()}
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

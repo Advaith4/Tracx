@@ -56,16 +56,8 @@ export default function CalendarPage({
   searchParams: Promise<{ date?: string; month?: string }>;
 }) {
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Calendar &amp; Reminders
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Click any date to inspect that day&apos;s health stats and set real-time
-          reminders.
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl font-semibold tracking-tight">Calendar</h1>
 
       <Suspense fallback={<LoadingState rows={4} />}>
         <AuthenticatedCalendar searchParamsPromise={searchParams} />

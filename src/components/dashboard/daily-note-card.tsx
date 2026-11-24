@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -59,10 +58,6 @@ export function DailyNoteCard({
           <StickyNote className="size-4 text-primary" aria-hidden="true" />
           <CardTitle>Daily Note</CardTitle>
         </div>
-        <CardDescription>
-          Optional note about how you felt today, meals, or reminders for your
-          provider.
-        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <Textarea

@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import {
   Activity,
   Bell,
-  BellRing,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
@@ -407,45 +406,20 @@ export function CalendarWorkspace({
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      {/* Real-time notification readiness bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-2xs">
-        <div className="flex items-center gap-3">
-          <div
-            className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-xl",
-              permissionState === "granted"
-                ? "bg-primary/12 text-primary"
-                : "bg-amber-500/12 text-amber-700 dark:text-amber-300"
-            )}
-          >
-            <BellRing className="size-4" aria-hidden="true" />
-          </div>
-          <div className="text-xs">
-            <p className="font-semibold text-foreground">
-              {permissionState === "granted"
-                ? "Real-time browser & in-app alerts are active"
-                : "In-app live alerts are active"}
-            </p>
-            <p className="text-muted-foreground">
-              {permissionState === "granted"
-                ? "Reminders pop up automatically at their exact scheduled time with sound and snooze."
-                : permissionState === "denied"
-                  ? "Browser popups are blocked in site settings — in-app toast alerts still notify you while Tracx is open."
-                  : "Enable browser popups so reminders notify you even when another tab is focused."}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {permissionState !== "granted" && permissionState !== "denied" && permissionState !== "unsupported" ? (
+    <div className="flex flex-col gap-4">
+      {/* Compact quick actions */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {permissionState !== "granted" &&
+          permissionState !== "denied" &&
+          permissionState !== "unsupported" ? (
             <Button
               size="sm"
               type="button"
               onClick={() => void handleEnableAlerts()}
             >
               <Bell className="size-3.5" aria-hidden="true" />
-              Enable Browser Alerts
+              Enable Alerts
             </Button>
           ) : null}
           <Button
@@ -454,22 +428,24 @@ export function CalendarWorkspace({
             type="button"
             onClick={() => void handleSendTestAlert()}
           >
+            <Bell className="size-3.5" aria-hidden="true" />
             Test Alert
           </Button>
-          <Link
-            href="/logbook"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            <Table2 className="size-3.5 text-primary" aria-hidden="true" />
-            Excel Sheet
-          </Link>
           <Link
             href="/profile/reminders"
             className={buttonVariants({ variant: "ghost", size: "sm" })}
           >
-            Push &amp; Quiet Hours
+            Settings
           </Link>
         </div>
+
+        <Link
+          href="/logbook"
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          <Table2 className="size-3.5 text-primary" aria-hidden="true" />
+          Excel Sheet
+        </Link>
       </div>
 
       {/* Month KPIs strip */}

@@ -30,11 +30,7 @@ export function AppShell({ children }: AppShellProps) {
               </span>
             </Link>
 
-            <div className="hidden items-center gap-2 md:flex">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary/70 px-2.5 py-0.5 text-[11px] font-medium text-secondary-foreground">
-                Personal Health Companion
-              </span>
-            </div>
+            <div className="hidden md:block" />
 
             <div className="flex items-center gap-2">
               <HeaderNotificationBell />
